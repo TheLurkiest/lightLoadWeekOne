@@ -1,0 +1,3 @@
+UI_EN = {
+    UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_ESCAPE = "Global Full Save All Spawned and Despawned Data",
+}
