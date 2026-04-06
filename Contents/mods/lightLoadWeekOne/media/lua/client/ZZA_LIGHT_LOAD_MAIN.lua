@@ -52,6 +52,62 @@ end
 
 
 
+
+
+local function makeFixedDespawn(removePrg)
+
+    return function(cnt)
+        
+        cnt = 0
+
+        if type(cnt) ~= "number" then cnt = tonumber(cnt) or 0 end
+        if cnt <= 0 then return end
+
+    end
+
+end
+
+
+local function capSpawn(originalSpawn, cap)
+    return function(cnt, ...)
+
+        cnt = 0
+
+        if type(cnt) ~= "number" then cnt = tonumber(cnt) or 0 end
+        if cnt <= 0 then return end
+
+
+        if type(cnt) ~= "number" then return originalSpawn(cnt, ...) end
+
+
+        return originalSpawn(cnt, ...)
+
+    end
+end
+
+local function patchOnce()
+    if not BWOPopControl then return end
+    if BWOPopControl.__R69_DespawnFix then return end
+    BWOPopControl.__R69_DespawnFix = true
+
+    -- despawn fixes (yours)
+
+    BWOPopControl.InhabitantsDespawn = makeFixedDespawn({"Inhabitant", "Looter", "Bandit", "RiotPolice", "Patrol"})
+
+    BWOPopControl.StreetsDespawn = makeFixedDespawn({"Walker", "Runner", "Postal", "Entertainer", "Janitor", "Medic", "Gardener", "Vandal", "Police", "ArmyGuard", "Fireman", "Active"})
+
+    BWOPopControl.SurvivorsDespawn = makeFixedDespawn({"Survivor", "Looter", "Thief"})
+
+    -- ✅ spawn throttles (NEW)
+    BWOPopControl.InhabitantsSpawn = capSpawn(BWOPopControl.InhabitantsSpawn, 7) -- 👈🟢 pick your cap
+    BWOPopControl.StreetsSpawn     = capSpawn(BWOPopControl.StreetsSpawn, 5)
+    BWOPopControl.SurvivorsSpawn   = capSpawn(BWOPopControl.SurvivorsSpawn, 3)
+
+
+end
+-- Call once after everything is loaded.
+Events.OnGameStart.Add(patchOnce)
+
 local function dripSpawnZs4Huts(keyId_in)
 
     -- Phase 2D — Zombie Drip Spawn: Make dripSpawnZs4Huts() slowly add those hut zombies back later, because the poof step only works if it also leads into a believable delayed return.
