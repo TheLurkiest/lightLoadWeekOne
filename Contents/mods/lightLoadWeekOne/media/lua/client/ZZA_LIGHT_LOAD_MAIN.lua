@@ -11,8 +11,11 @@ quickCountNearbyZeds_R69 = 0
 totZedsOverFlow_R69 = 0
 
 maxNpcs_R69 = 100
+maxZeds_R69 = 350
 
 npcsCloserThan20dist_R69 = 0
+
+activeSpawningHutKeyId = nil
 
 local savedKeyId = nil
 
@@ -49,6 +52,377 @@ end
 
 
 
+local function dripSpawnZs4Huts(keyId_in)
+
+    -- Phase 2D — Zombie Drip Spawn: Make dripSpawnZs4Huts() slowly add those hut zombies back later, because the poof step only works if it also leads into a believable delayed return.
+
+    local keyId = keyId_in
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+
+
+
+
+
+
+    local numberOfZombies = ZombRand(1, 10)
+
+    local rand1 = ZombRand(16, 34)
+    local rand2 = ZombRand(16, 34)
+
+
+    -- hutsCsv
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local vipsCsv = ModData.getOrCreate("vipsCsv")
+
+
+
+
+
+
+    ------------------------------------------------------ 🍪🍪
+    -- NO DOUBLE-DIPPING OR SPAWNING WHILE DE-SPAWNING:
+
+    for k, v in pairs(hutsCsv) do
+        -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+
+        keyId = tonumber(k)
+
+        if math.abs(tonumber(v.totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 3 then
+            do return end
+        end
+
+    end
+
+
+
+
+    if activeSpawningHutKeyId == nil then
+        if hutsCsv[keyId] ~= nil then
+    
+            if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) > 3 and math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 63 then
+                activeSpawningHutKeyId = keyId
+            end
+            
+        end
+        
+    end
+
+    if activeSpawningHutKeyId == nil then
+        do return end
+    else
+
+
+        if math.abs((hutsCsv[activeSpawningHutKeyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) > 63 then
+            activeSpawningHutKeyId = nil
+            do return end
+        end
+    end
+
+    if activeSpawningHutKeyId ~= keyId then
+        do return end
+    end
+
+
+
+
+    ---------------------------------- NO DOUBLE-DIPPING 🍪
+
+ 
+
+    -- 34 and 34 diff -> 48 dist -> this should be MAX total so if (math.abs(rand1) + math.abs(rand2)) is ever MORE than 68 (34+34) then we reset it by doing: rand1 = ZombRand(14, 34); rand2 = ZombRand(14, 34);
+
+    -- print(BanditUtils.DistTo(px, py, px + 34, py + 34)) 
+
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local vipsCsv = ModData.getOrCreate("vipsCsv")
+
+    local zedsHere = ModData.getOrCreate("zedsHere")
+
+    local rand3 = ZombRand(1, 100)
+
+    if not hutsCsv[keyId] then
+        do return end
+    end
+
+    if hutsCsv[keyId].totZombiesLeft < 1 then
+        do return end
+    else
+
+        if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 3 then
+            do return end
+        else
+            if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 60 or math.abs(hutsCsv[keyId].dayLastSeen - getGameTime():getDay()) >= 2 then
+
+                if math.abs(hutsCsv[keyId].dayLastSeen - getGameTime():getDay()) >= 2 then
+
+                    if rand3 > 50 then
+
+                        if (4 + rand3) % 4 == 0 then
+
+                            if hutsCsv[keyId].totZombiesLeft > 0 then
+                                hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft + ZombRand(1, 10)
+                            end
+
+                        else
+
+                            hutsCsv[keyId].totZombiesLeft = math.floor(hutsCsv[keyId].totZombiesLeft / 2)
+
+                        end
+
+                        -- buildingDef = 
+
+                        if hutsCsv[keyId].isAlarmed == true or rand3 >= 90 then
+
+                            hutsCsv[keyId].totMinutesAtFirstSeen = math.abs((getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) - 4
+
+                            hutsCsv[keyId].totMinutesWhenLastSeen=math.abs((getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24)))
+
+                            -- or we just do this and have a slow drip of MANY zombies spawn in for a while again (in ADDITION to the starting clump of just the one big clump at once) if some alarm has been going off in here for a long time slowly 
+
+
+                        end
+
+                    end
+
+                    numberOfZombies = ZombRand(7, 14)
+
+                    if getGameTime():getDay() > 20 then
+                        numberOfZombies = ZombRand(7, 20)
+                    else
+                        if getGameTime():getDay() >= 14 then
+                            numberOfZombies = ZombRand(7, (getGameTime():getDay()))
+                        end
+                    end
+
+                    if hutsCsv[keyId].totZombiesLeft < numberOfZombies then
+
+                        numberOfZombies = hutsCsv[keyId].totZombiesLeft
+
+                        if numberOfZombies < 1 then
+                            numberOfZombies = 1
+                        end
+                    end
+
+                    local bonusZeds = math.abs(hutsCsv[keyId].dayLastSeen - getGameTime():getDay())
+
+                    if bonusZeds > 20 then
+                        bonusZeds = 20
+                    end
+
+                    if bonusZeds > 2 then
+                        numberOfZombies = numberOfZombies + ZombRand(1, bonusZeds)
+                    end
+
+                    hutsCsv[keyId].dayLastSeen = getGameTime():getDay()
+
+                    -- SINGLE large-ish burst/clump spawns nearby
+
+                    if hutsCsv[keyId].isAlarmed == true then
+
+                        -- if building alarm was going up for DAYS then they're already gonna be clustered up RIGHT NEARBY:
+
+                        rand1 = ZombRand(14, 21)
+                        rand2 = ZombRand(14, 21)
+                    else
+                        rand1 = ZombRand(21, 49)
+                        rand2 = ZombRand(21, 49)
+                    end
+
+                    if ZombRand(1, 100) > 50 then
+
+                        -- ...or THIS triggers and no zombie clump spawns in at this point:
+
+                        do return end
+
+                    end
+
+                    if ZombRand(1, 10) >= 5 then
+                        rand1 = rand1 * (-1)
+                    else
+                        rand2 = rand2 * (-1)
+                    end
+
+                end
+
+            end
+        end
+
+    end
+
+
+
+
+
+
+
+    
+
+
+
+    local maleOutfits = { "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo" }
+
+    local femaleOutfits = { "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer" }
+
+
+    if getGameTime():getDay() >= 16 then
+               
+
+        maleOutfits = {"PoliceState", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "Bandit", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "Security"}
+        
+        femaleOutfits = {"Pharmacist", "Nurse", "Doctor", "Bandit", "Police", "Generic01",  "Generic02", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Bandit", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "Farmer", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal" }
+        
+    end
+
+
+    if ZombRand(1, 100) > 50 then
+
+        if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 10 or math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) >= 50 then
+            numberOfZombies = math.ceil(numberOfZombies / 4)
+        else
+
+            if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 15 or math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) >= 45 then
+                numberOfZombies = math.ceil(numberOfZombies / 3)
+            else
+
+                if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 20 or math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) >= 40 then
+                    numberOfZombies = math.ceil(numberOfZombies / 2)
+                end
+
+            end
+
+        end
+
+    end
+
+
+
+    if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) <= 5 or math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) >= 55 then
+
+        numberOfZombies = math.ceil(numberOfZombies / 4)
+
+        if numberOfZombies > 3 then
+            numberOfZombies = ZombRand(1, 3)
+        end
+
+    end
+
+
+
+    local unisexOutfitsMiniTab = {"Generic01", "Generic02", "Generic03", "Generic04", "Generic05"}
+
+    local text = tostring(unisexOutfitsMiniTab[ZombRand(1, (#unisexOutfitsMiniTab))])
+
+    local femaleChanceHere = 50
+
+    if ZombRand(1, 100) > 80 then
+        numberOfZombies = 1
+        
+        if ZombRand(1, 100) > 50 then
+
+            femaleChanceHere = 0
+            text = tostring(maleOutfits[ZombRand(1, (#maleOutfits))])
+
+        else
+            femaleChanceHere = 100
+            text = tostring(femaleOutfits[ZombRand(1, (#femaleOutfits))])
+
+        end
+    end
+
+    if ZombRand(1, 1000) > 500 then
+        rand2 = (-1) * (rand2)
+    end
+    if ZombRand(1, 1000) > 500 then
+        rand1 = (-1) * (rand1)
+    end
+    
+    -- 34 and 34 diff -> 48 dist -> this should be MAX total so if (math.abs(rand1) + math.abs(rand2)) is ever MORE than 68 (34+34) then we reset it by doing: rand1 = ZombRand(14, 34); rand2 = ZombRand(14, 34);
+
+    -- print(BanditUtils.DistTo(px, py, px + 34, py + 34)) 
+
+    if (math.abs(rand1) + math.abs(rand2)) > 68 then
+        rand1 = ZombRand(21, 34)
+        rand2 = ZombRand(21, 34)
+    end
+
+    local count = getNumActivePlayers()
+    local pl = getPlayer(0)
+
+    if count > 1 then
+        -- print("more than one player")
+        -- pl:Say("more than one player")
+
+        -- we wanna spawn them a little further away probably if there's more than one player present (for split-screen co-op so we don't spawn right on top of another player)
+
+        for i = (count - 1), (count) do
+
+            local px = getPlayer(i):getX()
+            local py = getPlayer(i):getY()
+            local pz = math.floor(getPlayer(i):getZ())
+
+            -- make sure to not mess up immersion of anyone else when doing local split-screen co-op by spawning zeds RIGHT IN FRONT OF THEM:
+
+            if BanditUtils.DistTo(px, py, (px + rand1), (py + rand2)) < 10 and pz == 0 then
+                numberOfZombies = 0
+                do return end
+            else
+                if BanditUtils.DistTo(px, py, (px + rand1), (py + rand2)) < 20 and tostring(LosUtil.lineClear(getCell(), px, py, pz, px + rand1, py + rand2, pz, false)) == "Clear" then
+                    numberOfZombies = 0
+                    do return end
+                end
+            end
+
+        end
+
+        if (math.abs(rand1) + math.abs(34)) < 68 then
+            rand2 = 34
+        else
+            if (math.abs(34) + math.abs(rand2)) < 68 then
+                rand1 = 34
+            end
+        end
+
+    else
+        -- print("there's only ONE player")
+        -- pl:Say("there's only ONE player")
+    end
+
+    
+    local px = getPlayer(0):getX()
+    local py = getPlayer(0):getY()
+    local pz = math.floor(getPlayer(0):getZ())
+
+
+    if tostring(LosUtil.lineClear(getCell(), px, py, pz, px + rand1, py + rand2, pz, false)) ~= "Clear" then
+
+        -- print("NO CLEAR VIEW TO ZED SPAWN LOCATION: OK TO SPAWN!")
+        -- pl:Say("NO CLEAR VIEW TO ZED SPAWN LOCATION: OK TO SPAWN!")
+
+        addZombiesInOutfit(px + rand1, py + rand2, 0, numberOfZombies, text, femaleChanceHere)
+
+        hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft - numberOfZombies
+
+    else
+        -- print("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+        -- pl:Say("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+    end
+
+
+    if hutsCsv[keyId].totZombiesLeft < 0 then
+        hutsCsv[keyId].totZombiesLeft = 0
+    end
+
+
+end
 
 
 
@@ -70,6 +444,8 @@ local function allButSpawn()
 
     -- maxNpcs_R69
 
+
+    -- if quickCountNearbyZeds_R69 > 250 or (quickCountNearbyZeds_R69 + quickCountNearbyNpcs_R69) > 300 then
 
 
 
@@ -121,10 +497,27 @@ local function allButSpawn()
         BWOPopControl.StreetsNominal = 1
         BWOPopControl.SurvivorsNominal = 6
     elseif BWOScheduler.WorldAge >= 169 then
-        BWOPopControl.ZombieMax = 1000
-        BWOPopControl.SurvivorsNominal = 0
-        BWOPopControl.InhabitantsNominal = 0
+        -- BWOPopControl.ZombieMax = 1000
+        -- BWOPopControl.SurvivorsNominal = 0
+        -- BWOPopControl.InhabitantsNominal = 0
+        -- BWOPopControl.StreetsNominal = 0
+        BWOPopControl.InhabitantsNominal = 2
         BWOPopControl.StreetsNominal = 0
+        BWOPopControl.SurvivorsNominal = 3
+    end
+
+    maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
+
+    if maxNpcs_R69 > 80 then
+        maxNpcs_R69 = 80
+    end
+
+    -- BWOScheduler.WorldAge == 132 
+
+    if BWOScheduler.WorldAge <= 132 then
+        maxZeds_R69 = BWOPopControl.ZombieMax
+    else
+        maxZeds_R69 = 250
     end
 
 
@@ -147,6 +540,73 @@ local function allButSpawn()
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
 
+
+    local bx, by
+    local tx, ty
+
+    local dist
+
+
+    local addNum = 5
+
+    if getGameTime():getDay() >= 15 then
+        addNum = 3
+
+        if getGameTime():getDay() >= 18 then
+            addNum = 1
+        end
+    end
+
+    if maxNpcs_R69 <= 90 then
+    
+        for k, v in pairs(hutsCsv) do
+            -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+
+            keyId = tonumber(k)
+
+            bx = v.x; by = v.y
+
+            tx = v.x2; ty = v.y2
+
+            local x1, x2, y1, y2
+
+            if v.x < v.x2 then
+                x1 = v.x
+                x2 = v.x2
+            else
+                x1 = v.x2
+                x2 = v.x
+            end
+
+            
+            if v.y < v.y2 then
+                y1 = v.y
+                y2 = v.y2
+            else
+                y1 = v.y2
+                y2 = v.y
+            end
+
+            if px > x1 and px < x2 and py > y1 and py < y2 then
+                maxNpcs_R69 = maxNpcs_R69 + addNum
+            else
+                if BanditUtils.DistTo(px, py, bx, by) < 25 or BanditUtils.DistTo(px, py, bx, by) < 25 then
+                    maxNpcs_R69 = maxNpcs_R69 + addNum
+                end
+            end
+
+
+        end
+
+    end
+
+
+    if maxNpcs_R69 > 100 then
+        maxNpcs_R69 = 100
+    end
+    
+
+
     if building then
 
         buildingDef = building:getDef()
@@ -164,7 +624,7 @@ local function allButSpawn()
         -- 
 
         if not hutsCsv[keyId] then
-            hutsCsv[keyId] = {occupantsMax=occupantsMax, totZombiesLeft=0, totMinutesAtFirstSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24)), x=x, y=y, x2=x2, y2=y2}
+            hutsCsv[keyId] = {occupantsMax=occupantsMax, totZombiesLeft=0, totMinutesAtFirstSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24)), x=x, y=y, x2=x2, y2=y2, dayLastSeen=getGameTime():getDay()}
 
             savedKeyId = keyId
 
@@ -208,7 +668,19 @@ local function allButSpawn()
             if zombie:isAlive() then
 
                 if zombie:getVariableBoolean("Bandit") then
-                    quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
+
+                    npc_id = zombie.id
+
+                    if BanditZombie.GetInstanceById(npc_id) ~= nil then
+
+                        brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
+
+                        if brain.program.name ~= "Bandit" then
+                            quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
+                        end
+
+                    end
+
                 else
                     quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 + 1
                 end
@@ -426,6 +898,7 @@ local function allButSpawn()
                         
 
                     else
+                        -- if quickCountNearbyZeds_R69 > 250 or (quickCountNearbyZeds_R69 + quickCountNearbyNpcs_R69) > 300 then
                         if quickCountNearbyZeds_R69 > 250 or (quickCountNearbyZeds_R69 + quickCountNearbyNpcs_R69) > 300 then
 
                             if dist > 30 then
