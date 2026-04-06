@@ -1001,7 +1001,7 @@ local function slapDashSpawner()
     local rand5b = ZombRand(14, 25) * (modNumB)
 
 
-    if npcsCloserThan20dist_R69 >= 20 then
+    if npcsCloserThan20dist_R69 >= 10 then
 
         rand1 = ZombRand(12, 25) * (modNum)
         rand1b = ZombRand(15, 25) * (modNumB)
@@ -1046,7 +1046,7 @@ local function slapDashSpawner()
     local numHutsFound = 0
 
 
-    if quickCountNearbyNpcs_R69 < maxNpcs_R69 and npcsCloserThan20dist_R69 < 30 then
+    if quickCountNearbyNpcs_R69 < maxNpcs_R69 and npcsCloserThan20dist_R69 < 16 then
 
         for i = 1, (#tab1) do
 
