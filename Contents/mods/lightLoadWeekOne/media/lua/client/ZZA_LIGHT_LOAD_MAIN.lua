@@ -5,21 +5,23 @@
 
 -- add two global variables:
 quickCountNearbyNpcs_R69 = 0
+maxNpcs_R69 = 100
 
 quickCountNearbyZeds_R69 = 0
+maxZeds_sandbox_knob250 = 250
+maxZeds_R69 = maxZeds_sandbox_knob250
 
 totZedsOverFlow_R69 = 0
 
-maxNpcs_R69 = 100
+insideNpcs_R69 = 0
+outsideNpcs_R69 = 0
+
 
 
 -- ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)
 
 -- print(SandboxVars.BanditsWeekOne.StreetsPopMultiplier); print(SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier)
 
-maxZeds_sandbox_knob250 = 250
-
-maxZeds_R69 = maxZeds_sandbox_knob250
 
 npcsCloserThan20dist_R69 = 0
 
@@ -27,6 +29,236 @@ activeSpawningHutKeyId = nil
 
 local savedKeyId = nil
 
+
+
+-- approxHutsCount = ZZA_countNearbyBuildings(getPlayer(), 40, 4)
+
+-- coordsTab1 = returnGravelGrass(player, radius, step)
+local function returnGravelGrass(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    local gravelIndex = -1
+    local concreteIndex = -1
+    local sandIndex = -1
+    local ceramicIndex = -1
+    local grassIndex = -1
+    local anywhereButTheRoad = -1
+
+    local sixMats = {}
+
+    table.insert(sixMats, {})
+    table.insert(sixMats, {})
+    table.insert(sixMats, {})
+
+    table.insert(sixMats, {})
+    table.insert(sixMats, {})
+    table.insert(sixMats, {})
+
+    local footstepMatHere
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, 0)
+
+            if square then
+                local building = square:getBuilding()
+
+                if building then
+
+                else
+                    
+                    if getCell():getGridSquare(x, y, 0):getObjects():get(0) ~= nil then
+                        
+                        footstepMatHere = tostring(getCell():getGridSquare(x, y, 0):getObjects():get(0):getSprite():getProperties():Val("FootstepMaterial"))
+
+                        if tostring(footstepMatHere) == "Gravel" then
+                            if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[1] == {} then
+                                gravelIndex = {x=x, y=y, z=0}
+                                sixMats[1] = gravelIndex
+                            end
+                        else
+                            if tostring(footstepMatHere) == "Concrete" and tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" then
+                                if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[2] == {} then
+                                    concreteIndex =  {x=x, y=y, z=0}
+                                    sixMats[2] = concreteIndex
+                                end
+                            else
+                                if tostring(footstepMatHere) == "Ceramic" and tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" then
+                                    if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[3] == {} then
+
+                                        ceramicIndex = {x=x, y=y, z=0}
+                                        sixMats[3] = ceramicIndex
+                                    end
+                                else
+                                    if tostring(footstepMatHere) == "Sand" and tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" then
+                                        if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[4] == {} then
+
+                                            sandIndex = {x=x, y=y, z=0}
+                                            sixMats[4] = sandIndex
+
+
+                                        end
+                                    else
+                                        if tostring(footstepMatHere) == "Grass" then
+                                            if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[5] == {} then
+
+                                                grassIndex = {x=x, y=y, z=0}
+
+                                                sixMats[5] = grassIndex
+                                            end
+                                        else
+                                            if tostring(footstepMatHere) ~= "nil" then
+                                                if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, 0, false)) ~= "Clear" or sixMats[6] == {} then
+                                                    anywhereButTheRoad = {x=x, y=y, z=0}
+                                                    sixMats[6] = anywhereButTheRoad
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+
+
+
+
+            end
+        end
+    end
+
+
+    for i = 1, (#sixMats) do
+        if sixMats[i] == {} then
+        else
+            return sixMats[i]
+        end
+    end
+
+
+    return nil
+end
+
+
+
+function ZZA_countNearbyBuildings(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, pz)
+
+            if square then
+                local building = square:getBuilding()
+
+
+
+                if building and not seen[building] then
+
+                    local buildingDef = building:getDef()
+                    local keyId = buildingDef:getKeyId()
+
+                    local x1 = buildingDef:getX()
+                    local y1 = buildingDef:getY()
+                    local x2 = buildingDef:getX2()
+                    local y2 = buildingDef:getY2()
+
+                    local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
+
+                    -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
+                    -- 
+
+                    local npcsLeft = 8
+
+                    -- if getGameTime():getDay() >= 15 then
+                    --     -- npcsLeft = 3
+                    --     npcsLeft = 5
+
+                    --     if getGameTime():getDay() >= 18 then
+                    --         npcsLeft = 5
+                    --         -- npcsLeft = 1
+                    --     end
+                    -- end
+
+                    local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
+
+                    -- print("debug: avgVar1 is " .. tostring(avgVar1))
+
+
+
+                    if avgVar1 >= 40 then
+                        npcsLeft = npcsLeft * 5
+                        -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
+
+                    else
+
+                        if avgVar1 >= 30 then
+                            npcsLeft = npcsLeft * 4
+                            -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
+
+                        else
+                            if avgVar1 > 23 then
+                                npcsLeft = npcsLeft * 2
+                            else
+
+                                if avgVar1 > 16 then
+                                    npcsLeft = npcsLeft
+                                else
+                                    npcsLeft = math.ceil(npcsLeft * (1/2))
+                                end
+                            end
+                        end
+
+                    end
+
+
+                    if hutsCsv[keyId] == nil then
+                        npcsLeftTotal = npcsLeftTotal + npcsLeft
+                    end
+
+
+
+
+                    seen[building] = true
+                    count = count + 1
+                end
+            end
+        end
+    end
+
+    -- print("Nearby buildings:", count)
+    -- print("un-counted civilians number:", npcsLeftTotal)
+    return npcsLeftTotal
+end
+
+-- quick test call
+
+-- local npcsLeftTotalOut = ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
 
 
 local function fixNakedNpcs()
@@ -405,6 +637,28 @@ local function fixSpawnedToMatch(display_mode_in)
 
     -- totHutsNearby
 
+
+
+    if BWOScheduler.WorldAge <= 132 then
+        maxNpcs_R69 = 15
+    else
+        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
+
+        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
+        
+    end
+
+    local approxHutsCount = 0; 
+    
+    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 2)
+
+    if approxHutsCount > 0 then
+        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
+    end
+
+
     for k, v in pairs(hutsCsv) do
         if v.npcsLeft > 0 then
             keyId = k
@@ -434,11 +688,15 @@ local function fixSpawnedToMatch(display_mode_in)
             local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
             
             if px > x1 and px < x2 and py > y1 and py < y2 then
-                -- maxNpcs_R69 = maxNpcs_R69 + addNum
+
+                maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
+                
                 totNpcsInRegion = totNpcsInRegion + v.npcsLeft
             else
                 if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                    -- maxNpcs_R69 = maxNpcs_R69 + addNum
+                    
+                    maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
+
                     totNpcsInRegion = totNpcsInRegion + v.npcsLeft
 
 
@@ -452,6 +710,12 @@ local function fixSpawnedToMatch(display_mode_in)
 
         end
     end
+
+    livingNumber_OG = livingNumber_OG + approxHutsCount
+
+    totNpcsInRegion = totNpcsInRegion + approxHutsCount
+
+    -- totNpcsInRegion = maxNpcs_R69
 
     -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
 
@@ -523,9 +787,15 @@ local function fixSpawnedToMatch(display_mode_in)
     -- pl:Say("[REMAINING RESIDENTS STILL SURVIVING IN THIS REGION: " .. tostring(totNpcsInRegion) .. "]")
 
 
-    if quickCountNearbyNpcs_R69 > 7 + totNpcsInRegion then
+    npcBuffer = 15
+
+
+
+
+
+    if quickCountNearbyNpcs_R69 > npcBuffer + totNpcsInRegion then
         
-        
+
         for i = 0, zombieList:size() - 1 do
 
             zombie = zombieList:get(i)
@@ -1095,9 +1365,9 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
     pl:Say("simpWalkerSpawner CALLED!")
 
-    if randChanceOfWalker > ZombRand(-100, 50) then
+    if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" or ZombRand(1, 100) > 70 then
 
-        pl:Say("simpWalkerSpawner CALLED!")
+        pl:Say("simpWalkerSpawner beat rando!")
 
         if getGameTime():getDay() < 13 then
 
@@ -1450,12 +1720,40 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
 
 
+
+        local maleOutfits = { "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo" }
+
+        local femaleOutfits = { "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer" }
+
+
+        if getGameTime():getDay() >= 16 then
+                
+
+            maleOutfits = {"PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "Bandit", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "Security"}
+            
+            femaleOutfits = {"Pharmacist", "Nurse", "Doctor", "Bandit", "Police", "Generic01",  "Generic02", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Bandit", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "Farmer", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal" }
+            
+        end
+
+
+        if ZombRand(1, 100) > 15 then
+            bandit.outfit = BanditUtils.Choice({"StreetSports", "StreetSports", "StreetSports"})
+
+
+            bandit.program.name = "Runner"
+            bandit.program.stage = "Main"
+        else
+
+        end
+
+
         bandit.femaleChance = 50
 
         table.insert(event.bandits, bandit)
         sendClientCommand(player, 'Commands', 'SpawnGroup', event)
 
 
+        player:Say("Debug: spawned in a WALKER OR RUNNER!")
 
     end
 
@@ -2295,6 +2593,11 @@ local function allButSpawn()
 
 
 
+    -- if approxHutsCount > 0 then
+    --     totNpcsInRegion = totNpcsInRegion + ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
+    -- end
+
+
     -- ADJUST: population nominals
     BWOPopControl.ZombieMax = 0
     BWOPopControl.StreetsNominal = 41
@@ -2364,21 +2667,36 @@ local function allButSpawn()
 
     end
 
-    maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
 
 
     if BWOScheduler.WorldAge <= 132 then
         maxNpcs_R69 = 15
-    end
-
-
-    -- BWOScheduler.WorldAge == 132 
-
-    if BWOScheduler.WorldAge <= 132 then
-        maxZeds_R69 = BWOPopControl.ZombieMax
     else
-        maxZeds_R69 = maxZeds_sandbox_knob250
+        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
+
+        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
+        
     end
+
+    local approxHutsCount = 0; 
+    
+    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 2)
+
+    if approxHutsCount > 0 then
+        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
+    end
+
+        
+
+    maxZeds_R69 = maxZeds_sandbox_knob250
+    
+    
+    -- end
+
+
+
 
 
     local zedsHere = ModData.getOrCreate("zedsHere")
@@ -2513,6 +2831,7 @@ local function allButSpawn()
         end
 
     end
+
 
 
     if maxNpcs_R69 > math.ceil(100 * ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)) then
@@ -2675,11 +2994,15 @@ local function allButSpawn()
     local py = player:getY()
     local pz = math.floor(player:getZ())
 
+    local square
+
 
     for i = 0, zombieList:size() - 1 do
         local zombie = zombieList:get(i)
         local zx = zombie:getX()
         local zy = zombie:getY()
+        local zz = math.floor(zombie:getZ())
+
         local dist = BanditUtils.DistTo(px, py, zx, zy)
         if zombie:getVariableBoolean("Bandit") then
             local brain = BanditBrain.Get(zombie)
@@ -2688,6 +3011,15 @@ local function allButSpawn()
             -- -- print("bandit??? -> program name is: " .. tostring(prg))
 
             quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
+
+            square = getCell():getGridSquare(zx, zy, zz);
+
+            if square:isOutside() then
+                outsideNpcs_R69 = outsideNpcs_R69 + 1
+            else
+                insideNpcs_R69 = insideNpcs_R69 + 1
+            end
+
 
         else
             -- print("no???")
@@ -3612,6 +3944,8 @@ local function preDripper(tick_in)
         else
             -- tostring(footstepMatHere) == 
 
+            -- square:isOutside()
+
             if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" and player:isOutside() and walkZ == 0 then
                 chanceOfSpawningSideStreet = 100
 
@@ -3830,6 +4164,24 @@ local function slapDashSpawner()
 
 
 
+    if BWOScheduler.WorldAge <= 132 then
+        maxNpcs_R69 = 15
+    else
+        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
+
+        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
+        
+    end
+
+    local approxHutsCount = 0; 
+    
+    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
+
+    if approxHutsCount > 0 then
+        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
+    end
 
     for k, v in pairs(vipsHere) do
         -- hutsCsv[k] = nil
@@ -3849,6 +4201,10 @@ local function slapDashSpawner()
     local x2, y2
 
     local totNpcsInRegion = 0
+
+    local livingNumber_OG = 0
+
+    local hutsCountedSaved = 0
 
     for k, v in pairs(hutsCsv) do
         if v.npcsLeft > 0 then
@@ -3879,12 +4235,24 @@ local function slapDashSpawner()
             local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
             
             if px > x1 and px < x2 and py > y1 and py < y2 then
-                -- maxNpcs_R69 = maxNpcs_R69 + addNum
+
+                -- livingNumber_OG
+
+                maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
+
                 totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+
+                hutsCountedSaved = hutsCountedSaved + 1
+
             else
                 if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
                     -- maxNpcs_R69 = maxNpcs_R69 + addNum
+
+                    maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
+
                     totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+
+                    hutsCountedSaved = hutsCountedSaved + 1
 
                 end
             end
@@ -3893,7 +4261,13 @@ local function slapDashSpawner()
     end
 
 
-    if quickCountNearbyNpcs_R69 >= totNpcsInRegion then
+
+    -- approxHutsCount
+
+    -- local addNumberForApproxHuts
+
+
+    if quickCountNearbyNpcs_R69 >= maxNpcs_R69 then
         
         do return end
 
@@ -4041,11 +4415,6 @@ local function slapDashSpawner()
 
     local walkX, walkY, walkZ
 
-    -- maxNpcs_R69 = BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal
-
-    -- if maxNpcs_R69 > math.ceil(100 * ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)) then
-    --     maxNpcs_R69 = math.ceil(100 * ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2))
-    -- end
 
     local numHutsFound = 0
 
@@ -4055,19 +4424,6 @@ local function slapDashSpawner()
     -- BWOPopControl.SurvivorsNominal = 3
 
 
-
-    if BWOScheduler.WorldAge <= 132 then
-        maxNpcs_R69 = maxNpcs_R69 - 15
-    else
-        if BWOScheduler.WorldAge > 132 then
-
-            -- maxNpcs_R69 = 0
-
-            maxNpcs_R69 = maxNpcs_R69 - (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
-
-        end
-
-    end
 
     -- if maxNpcs_R69
 
@@ -4454,7 +4810,7 @@ local function slapDashSpawner()
             do return end
         end
 
-        if ZombRand(1, 25) + ZombRand(1, 25) + ZombRand(1, 30) > boolWalkerChance then
+        if ZombRand(50, 100) > boolWalkerChance then
 
             if building ~= nil and square ~= nil then
 
@@ -4608,11 +4964,192 @@ local onTickZZB = function(numTicksInZZB)
         do return end
     end
 
-    if numTicksInZZB % 2 == 0 or numTicksInZZB % 2 ~= 0 then
-        allButSpawn()
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = math.floor(player:getZ())
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+
+    local square = getCell():getGridSquare(px, py, pz)
+
+    local building; local buildingDef; local keyId
+
+    local approxHutsCount = ZZA_countNearbyBuildings(getPlayer(), 5, 1)
+
+    if tonumber(approxHutsCount) == nil then
+        approxHutsCount = 0
+    end
+
+
+
+    local forcedToEveryTick = false
+
+    
+    if approxHutsCount > 0 then
+        forcedToEveryTick = true
+    else
+
+        if square then
+            
+            building = square:getBuilding()
+
+            if building and not seen[building] then
+
+                buildingDef = building:getDef()
+                keyId = buildingDef:getKeyId()
+
+                if hutsCsv[keyId] ~= nil then
+
+                    if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
+                        forcedToEveryTick = true
+                    
+
+                    end
+
+                end
+                
+            end
+        end
+    end
+
+
+    local forcedToEveryTenTicks = false
+
+    if forcedToEveryTick == false then
+
+        if (quickCountNearbyNpcs_R69 / maxNpcs_R69) >= 0.90 then
+
+            forcedToEveryTenTicks = true
+
+        else
+            
+
+            if (quickCountNearbyZeds_R69 / maxZeds_R69) >= 0.90 then
+
+                forcedToEveryTenTicks = true
+
+            end
+        end
+    end
+
+    local bx, by, bz
+
+    local dist
+
+    if forcedToEveryTick == false then
+
+        local tx, ty;
+        local bx, by
+
+        local x1, y1
+        local x2, y2
+
+        local totNpcsInRegion = 0
+
+        for k, v in pairs(hutsCsv) do
+            if v.npcsLeft > 0 then
+
+                keyId = k
+
+                bx = v.x; by = v.y
+
+                tx = v.x2; ty = v.y2
+
+                local x1, x2, y1, y2
+
+                if v.x < v.x2 then
+                    x1 = v.x
+                    x2 = v.x2
+                else
+                    x1 = v.x2
+                    x2 = v.x
+                end
+                
+                if v.y < v.y2 then
+                    y1 = v.y
+                    y2 = v.y2
+                else
+                    y1 = v.y2
+                    y2 = v.y
+                end
+
+                local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
+
+                -- print("debug: avgVar1 is " .. tostring(avgVar1))
+
+                -- BanditUtils.DistTo(px, py, x1, y1) < 35 or BanditUtils.DistTo(px, py, x2, y2) < 35 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 35
+
+                -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100
+
+
+                if px > x1 and px < x2 and py > y1 and py < y2 then
+                    -- maxNpcs_R69 = maxNpcs_R69 + addNum
+                    totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+
+                    if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
+                        forcedToEveryTick = true
+                    end
+
+                else
+                    if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
+                        -- maxNpcs_R69 = maxNpcs_R69 + addNum
+                        totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+
+                        if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
+                            forcedToEveryTick = true
+                        end
+
+                    end
+                end
+
+            end
+        end
+    end
+    
+
+    if forcedToEveryTick == true then
+       
+        if numTicksInZZB % 2 == 0 or numTicksInZZB % 2 ~= 0 then
+            allButSpawn()
+        end
+
+    else
+
+        if forcedToEveryTenTicks == true then
+
+            if numTicksInZZB % 10 == 0 then
+                allButSpawn()
+            end
+
+        else
+
+            if numTicksInZZB % 60 == 0 then
+                allButSpawn()
+            end
+
+        end
+       
+
+    end
+ 
+    
+
+
+
+
+
+
+
+
+
+    if numTicksInZZB % 25 == 0 then
 
         npcChecker()
+
     end
+
 
     if numTicksInZZB % 360 == 0 then
 
@@ -4647,20 +5184,6 @@ local onTickZZB = function(numTicksInZZB)
 
 
     -- if  10, it's 2 therefore,  120 
-    local slapNum = math.floor(quickCountNearbyNpcs_R69 / 5)
-
-    slapNum = (slapNum * 90)
-
-    if slapNum == 0 then
-        slapNum = 77
-    end
-
-    --    npcs|ticks
-        -- 5	90
-        -- 10	180
-        -- 15	270
-        -- 20	360
-
 
     local dist = 99
 
@@ -4694,23 +5217,66 @@ local onTickZZB = function(numTicksInZZB)
     if quickCountNearbyNpcs_R69 >= 10 then
 
         if dist > 20 or bz ~= pz then
+            
         end
     end
 
-    if slapNum > 50 then
-        slapNum = 50
-    end
+    local slapNum = 30
 
 
+    
 
+    local coordsTab1
 
-    if maxNpcs_R69 > quickCountNearbyNpcs_R69 + 25 then
-        slapNum = 18
+    -- quickCountNearbyNpcs_R69 =
+
+    slapNum = 30
+
+    if quickCountNearbyNpcs_R69 > 30 then
+        slapNum = 180
     end
     
-    if numTicksInZZB % slapNum == 0 then
-        slapDashSpawner()
+    if quickCountNearbyNpcs_R69 > 50 then
+        slapNum = 360
     end
+
+    if quickCountNearbyNpcs_R69 > 70 then
+        slapNum = 720
+    end
+
+
+    if quickCountNearbyNpcs_R69 > 80 then
+        slapNum = 900
+    end
+
+    if quickCountNearbyNpcs_R69 > 90 then
+        slapNum = 1800
+    end
+
+    if insideNpcs_R69 > 0 then
+
+        if numTicksInZZB % slapNum == 0 then
+
+
+            if outsideNpcs_R69 < insideNpcs_R69 / 3 or outsideNpcs_R69 < 15 then
+
+                coordsTab1 = returnGravelGrass(player, 40, 2)
+
+                if coordsTab1 ~= nil then
+                    simpWalkerSpawner(coordsTab1.x, coordsTab1.y, 0)
+                end
+                -- simpWalkerSpawner(x_in, y_in, z_in)
+            else
+
+                    slapDashSpawner()
+                -- end
+                
+            end
+        end
+
+    end
+
+    
 
     if numTicksInZZB % 9500 == 0 then
         pauseThenGlobalSave12()
