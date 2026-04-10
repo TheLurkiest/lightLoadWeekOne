@@ -1,3 +1,7 @@
 UI_EN = {
     UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_ESCAPE = "Global Full Save All Spawned and Despawned Data",
+    UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_8 = "Quicker-Start: Jump ahead to EARLY PART of outbreak [main]",
+    UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_9 = "Quicker-Start: Jump ahead to MIDDLE of outbreak [main]",
+    UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_NUMPAD8 = "Quicker-Start: Jump ahead to EARLY PART of outbreak [dup]",
+    UI_optionscreen_binding_PLACEHOLDER_Keyboard_KEY_NUMPAD9 = "Quicker-Start: Jump ahead to MIDDLE of outbreak [dup]",
 }

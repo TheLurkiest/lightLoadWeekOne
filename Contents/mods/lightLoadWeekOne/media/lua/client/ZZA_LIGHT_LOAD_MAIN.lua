@@ -3,9 +3,11 @@
 -- alright i fucked it again; we went to make a light, simple mod and accidentally turned it into a slog again-- here's me committing to a wildly simpler format for how we're gonna do this mod now the right; we start with a blank sheet of paper; we're calling this mod 'lightLoadWeekOne' and it's a mod that simplifies/fixes spawning/de-spawning to make it better and easier on computers-- but here's how we do it different from last time: first-- we start with AN EMPTY lua file 'ZZA_LIGHT_LOAD_MAIN.lua' which is named such so that it loads after all other mods in the 'bandits week one' mod in project zomboid that this mod utilizes/alters and that way i assume we don't need all this extra bullshit with hooks when we wanna modify that mods global functions using wrappers; we just do a SUPER SIMPLE WRAPPER for every single global function that week one created which either spawns or de-spawns zombies and/or NPCs but instead of trying to work WITH those functions and only alter them a LITTLE BIT, THIS TIME WE'RE JUST GONNA INSTANTLY RETURN-- that way we can create our OWN mechanisms for spawning/de-spawning and don't need to worry about conflict or overlap-- but the ONLY thing in our mod when we first open it up in game, as i said-- is going to be that single empty lua file (but with a simple 'ontick' function and 'onPress' function and function that saves our created mod-data table that gets called in those two functions so that our mod-data saves every time we hit the 'escape' key to leave the game and every few minutes as an 'auto-save' mechanism. That should be the only thing that our mod has inside it to start with when we boot up our game. And everything will be something that we create/test in-game within the lua console: that way we might better ensure it's as light and simple structurally as it can possibly be. But I still kinda wanna go over some LOOSE, VAGUE IDEA of how i'm gonna structure some of that before I instantly jump right in with you. 
 
 
+
 -- add two global variables:
 quickCountNearbyNpcs_R69 = 0
 maxNpcs_R69 = 100
+maxNpcs_R69_OG = 100
 
 quickCountNearbyZeds_R69 = 0
 maxZeds_sandbox_knob250 = 250
@@ -20,7 +22,7 @@ outsideNpcs_R69 = 0
 
 -- ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)
 
--- print(SandboxVars.BanditsWeekOne.StreetsPopMultiplier); print(SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier)
+-- -- print(SandboxVars.BanditsWeekOne.StreetsPopMultiplier); -- print(SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier)
 
 
 npcsCloserThan20dist_R69 = 0
@@ -30,10 +32,328 @@ activeSpawningHutKeyId = nil
 local savedKeyId = nil
 
 
+local function deadCount1()
 
--- approxHutsCount = ZZA_countNearbyBuildings(getPlayer(), 40, 4)
+    ---------------------------------------------------- 💀
+    ---------------------------------------------------- 💀
+    ---------------------------------------------------- 💀
+    
+    local npcsKilledThisTick = 0
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local npc_id
+
+    local vipsHere = ModData.getOrCreate("vipsHere")
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+
+    ---------------------------------------------------- 💀
+
+    for k, v in pairs(vipsHere) do
+
+        npc_id = k
+
+        if BanditZombie.GetInstanceById(npc_id) == nil then
+
+            -- -- print("npc is nil! Last dist was " .. tostring(v.lastDistanceSeen))
+
+            if v.lastDistanceSeen < 21 then
+
+                npcsKilledThisTick = npcsKilledThisTick + 1
+
+                vipsHere[k] = nil
+
+                -- -- pl:Say("removing NPC!!! Dead!")
+
+            else
+                vipsHere[k] = nil
+            end
+            
+        else
+
+
+            bx = BanditZombie.GetInstanceById(npc_id):getX();
+            by = BanditZombie.GetInstanceById(npc_id):getY();
+            bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
+            
+            dist = BanditUtils.DistTo(px, py, bx, by)
+
+            v.lastDistanceSeen = dist
+
+            -- -- print("npc seen at dist " .. tostring(dist))
+
+            v.totMinutesAtLastSeen = (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))
+            
+        end
+
+    end
+
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+    if npcsKilledThisTick > 0 then
+
+        for k, v in pairs(hutsCsv) do
+            
+
+            dist = BanditUtils.DistTo(px, py, (v.px), v.py)
+
+            if dist < 40 then
+                -- -- print("this IS in zone range!")
+                -- -- pl:Say("this IS in zone range!")
+
+                if v.npcsLeft > 0 and npcsKilledThisTick > 0 then
+                    v.npcsLeft = v.npcsLeft - 1
+                    npcsKilledThisTick = npcsKilledThisTick - 1
+                    -- npcsLeft_OG
+
+                    if ZombRand(0, 1000) > 900 then
+                        mainR69.popMultLeft = mainR69.popMultLeft - 0.1
+                    end
+
+                end
+
+                if npcsKilledThisTick <= 0 then
+                    break
+                end
+
+            else
+                -- -- print("NOT in range")
+                -- -- pl:Say("NOT in range")
+            end
+
+
+
+        end
+
+        -- mainR69.baseMult = 3.0; mainR69.basePop = 25
+
+        if mainR69.basePop > 0 then
+            mainR69.baseMult = 3.0; mainR69.basePop = mainR69.basePop - npcsKilledThisTick
+        end
+
+        if mainR69.basePop < 0 then
+            mainR69.baseMult = 3.0; mainR69.basePop = 0
+        end
+
+        npcsKilledThisTick = 0
+        
+    end
+
+    ---------------------------------------------------- 💀
+    ---------------------------------------------------- 💀
+    ---------------------------------------------------- 💀
+
+
+
+end
+
+local function giveShittyGun(npc_id_in, gun_in)
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local vipsHere = ModData.getOrCreate("vipsHere")
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+
+    local dist = 99
+
+    local result = BanditUtils.GetClosestBanditLocationProgram(player, {"Walker", "Entertainer", "Survivor", "Runner", "Inhabitant", "Active", "Babe"})
+
+    local brain; local bandit; 
+    
+    local npc_id = npc_id_in
+    
+    local dist = 99
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local bx, by, bz
+
+    
+    if tostring(brain.program.name) == "Babe" or tostring(brain.program.name) == "Walker" or tostring(brain.program.name) == "Inhabitant" or tostring(brain.program.name) == "Survivor" or tostring(brain.program.name) == "Active" or tostring(brain.program.name) == "Runner" then
+        
+    else
+        do return end
+    end
+
+
+    result = BanditUtils.GetClosestBanditLocationProgram(player, {"Babe", "Walker", "Inhabitant", "Medic", "Survivor", "Medic"})
+
+    local s99 = ""
+
+    if BanditZombie.GetInstanceById(npc_id_in) == nil then
+        
+    else
+
+        npc_id = npc_id_in
+
+        bandit = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
+        brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
+
+        local babe1 = BanditZombie.GetInstanceById(npc_id)
+
+        local tab1 = {"Base.VarmintRifle", "Base.HuntingRifle", "Base.DoubleBarrelShotgun", "Base.Shotgun", "Base.DoubleBarrelShotgunSawnoff", "Base.ShotgunSawnoff"}
+
+        local tab2 = {"Base.Pistol3", "Base.Pistol2", "Base.Revolver_Short", "Base.Revolver", "Base.Pistol", "Base.Revolver_Long", "Base.Revolver_CapGun"}
+
+        if tostring(bandit.weapons.primary.name) == "false" and tostring(gun_in) == "Rifle" then
+
+            s99 = (tostring(tab1[ZombRand(1, (#tab1))]))
+            bandit.weapons.primary.name = s99
+
+            babe1:getInventory():AddItem(s99)
+
+            invItem = InventoryItemFactory.CreateItem(s99)
+            s99 = tostring(invItem:getAmmoType())
+
+            bandit.weapons.primary.magSize = invItem:getClipSize()
+            bandit.weapons.primary.bulletsLeft = invItem:getClipSize()
+
+            if invItem:getClipSize() == 0 then
+                if tostring(bandit.weapons.primary.name) == "Base.DoubleBarrelShotgun" or "Base.DoubleBarrelShotgunSawnoff" then
+                    -- print("changing clip size from 0 to 2")
+                    bandit.weapons.primary.magSize = 2
+                    bandit.weapons.primary.bulletsLeft = 2
+                else
+                    -- print("changing clip size from 0 to 3")
+                    bandit.weapons.primary.magSize = 3
+                    bandit.weapons.primary.bulletsLeft = 3
+                end
+            end
+
+            bandit.weapons.primary.magCount = math.ceil(200 / (bandit.weapons.primary.magSize))
+
+        end
+
+        ------------------------------------------------------------------------
+
+        local tab2 = {"Base.Pistol3", "Base.Pistol2", "Base.Revolver_Short", "Base.Revolver", "Base.Pistol", "Base.Revolver_Long"}
+
+        if tostring(bandit.weapons.secondary.name) == "false" and tostring(gun_in) == "Pistol" then
+
+            s99 = (tostring(tab2[ZombRand(1, (#tab2))]))
+            bandit.weapons.secondary.name = s99
+
+            local babe1 = BanditZombie.GetInstanceById(npc_id)
+            
+            babe1:getInventory():AddItem(s99)
+
+            invItem = InventoryItemFactory.CreateItem(s99)
+            s99 = tostring(invItem:getAmmoType())
+
+            bandit.weapons.secondary.magCount = math.ceil(200 / (invItem:getClipSize()))
+            bandit.weapons.secondary.magSize = invItem:getClipSize()
+            bandit.weapons.secondary.bulletsLeft = invItem:getClipSize()
+
+        end
+
+    end
+
+
+end
+
 
 -- coordsTab1 = returnGravelGrass(player, radius, step)
+
+
+local function returnRoomCoords(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    local gravelIndex = -1
+    local concreteIndex = -1
+    local sandIndex = -1
+    local ceramicIndex = -1
+    local grassIndex = -1
+    local anywhereButTheRoad = -1
+
+    local tab1 = {}
+
+    local footstepMatHere
+
+    local randZ = 0
+
+    if ZombRand(0, 1000) > 950 or pz > 0 then
+
+        if pz > 0 and ZombRand(0, 100) > 90 then
+            randZ = pz
+        else
+
+            if ZombRand(0, 100) > 50 then
+                randZ = pz + 1
+            end
+
+        end
+
+    end
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, (randZ))
+
+            if BanditUtils.DistTo(px, py, x, y) or randZ ~= pz then
+    
+                if square then
+                    if square:getBuilding() then
+                        if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, randZ, false)) ~= "Clear" or BanditUtils.DistTo(px, py, x, y) > 21 then
+                            if not square:getZombie() then
+                                table.insert(tab1, {x=x, y=y, z=(randZ)})
+                            end
+                        end
+                    else
+                        
+                        if getCell():getGridSquare(x, y, 0):getObjects():get(0) ~= nil then
+                            
+                            footstepMatHere = tostring(getCell():getGridSquare(x, y, 0):getObjects():get(0):getSprite():getProperties():Val("FootstepMaterial"))
+                            
+                            if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Sand" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" then
+
+                                if tostring(LosUtil.lineClear(getCell(), px, py, pz, x, y, randZ, false)) ~= "Clear" or BanditUtils.DistTo(px, py, x, y) > 15 then
+
+                                    if not square:getZombie() then
+                                        table.insert(tab1, {x=x, y=y, z=(randZ)})
+                                    end
+                                end
+
+                            else
+
+                                if ZombRand(1, 100) > 90 then
+                                    if tostring(footstepMatHere) ~= "nil" then
+                                        table.insert(tab1, {x=x, y=y, z=(randZ)})
+                                    end
+                                end
+
+                            end
+
+                        end                    
+                    end
+                end
+            end
+        end
+    end
+
+    return tab1
+end
+
+
 local function returnGravelGrass(player, radius, step)
     local count = 0
 
@@ -153,8 +473,10 @@ local function returnGravelGrass(player, radius, step)
 end
 
 
+local function countTotalHuts(player, radius, step)
 
-function ZZA_countNearbyBuildings(player, radius, step)
+    local mainR69 = ModData.getOrCreate("mainR69")
+
     local count = 0
 
     local px = math.floor(player:getX())
@@ -207,34 +529,559 @@ function ZZA_countNearbyBuildings(player, radius, step)
 
                     local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
 
-                    -- print("debug: avgVar1 is " .. tostring(avgVar1))
+                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
 
 
+                    local multLeft = 0.0
+
+                    if not mainR69.popMultLeft then
+                        mainR69.popMultLeft = mainR69.baseMult
+                    end
+                    
+                    npcsLeft = 4
+
+                    local mainR69 = ModData.getOrCreate("mainR69")
+
+                    local multLeft = 0.0
+                    local multLeft_OG = 0.0
+
+                    if not mainR69.baseMult then
+                        mainR69.baseMult = 3.0
+                    end
+
+                    if not mainR69.popMultLeft then
+                        mainR69.popMultLeft = mainR69.baseMult
+                    end
+
+                    npcsLeft = 4
+                    local npcsLeft_OG = 4
 
                     if avgVar1 >= 40 then
-                        npcsLeft = npcsLeft * 5
-                        -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
+                        multLeft = mainR69.popMultLeft - 0
+                        if multLeft < 0 then
+                            multLeft = 0
+                        end
+                        npcsLeft = math.ceil(npcsLeft * (multLeft))
+                        -- npcsLeft = npcsLeft * 3
+
+                        multLeft_OG = mainR69.baseMult - 0
+                        if multLeft_OG < 0 then
+                            multLeft_OG = 0
+                        end
+                        npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
 
                     else
 
                         if avgVar1 >= 30 then
-                            npcsLeft = npcsLeft * 4
-                            -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
+                            multLeft = mainR69.popMultLeft - 1.0
+                            if multLeft < 0 then
+                                multLeft = 0
+                            end
+                            npcsLeft = math.ceil(npcsLeft * (multLeft))
+                            -- npcsLeft = npcsLeft * 2
+
+                            multLeft_OG = mainR69.baseMult - 1.0
+                            if multLeft_OG < 0 then
+                                multLeft_OG = 0
+                            end
+                            npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
 
                         else
                             if avgVar1 > 23 then
-                                npcsLeft = npcsLeft * 2
+                                multLeft = mainR69.popMultLeft - 1.5
+                                if multLeft < 0 then
+                                    multLeft = 0
+                                end
+                                npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                -- npcsLeft = math.ceil(npcsLeft * 1.5)
+                                
+                                multLeft_OG = mainR69.baseMult - 1.5
+                                if multLeft_OG < 0 then
+                                    multLeft_OG = 0
+                                end
+                                npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
                             else
 
                                 if avgVar1 > 16 then
-                                    npcsLeft = npcsLeft
+                                    multLeft = mainR69.popMultLeft - 2.0
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = (npcsLeft * (1.0))
+
+                                    multLeft_OG = mainR69.baseMult - 2.0
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
                                 else
-                                    npcsLeft = math.ceil(npcsLeft * (1/2))
+                                    multLeft = mainR69.popMultLeft - 2.5
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = math.ceil(npcsLeft * (0.5))
+
+                                    multLeft_OG = mainR69.baseMult - 2.5
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    -- 
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
                                 end
                             end
                         end
 
                     end
+
+
+
+                    if hutsCsv[keyId] == nil then
+                        npcsLeftTotal = npcsLeftTotal + npcsLeft
+                    end
+
+
+
+
+                    seen[building] = true
+
+                    if hutsCsv[keyId] == nil then
+                        count = count + 1
+                    else
+                        if hutsCsv[keyId].npcsLeft > 0 then
+                            count = count + 1
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    -- -- print("Nearby buildings:", count)
+    -- -- print("un-counted civilians number:", npcsLeftTotal)
+    return count
+end
+
+
+
+local function ZZA3_checkHutsRad5(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local totLivingNumber_OG = 0
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    local countedNeeds = 0
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, pz)
+
+            if square then
+                local building = square:getBuilding()
+
+                if building and not seen[building] then
+
+                    local buildingDef = building:getDef()
+                    local keyId = buildingDef:getKeyId()
+
+                    if hutsCsv[keyId] == nil then
+                        countedNeeds = 1
+                        return countedNeeds
+
+                    else
+                        if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
+                            countedNeeds = 1
+                            return countedNeeds
+                        end
+                    end
+
+                    seen[building] = true
+                    count = count + 1
+                end
+            end
+        end
+    end
+
+    return countedNeeds
+    
+end
+
+
+local function ZZA2_AllNpcsLeftNearbyHuts(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local totLivingNumber_OG = 0
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, pz)
+
+            if square then
+                local building = square:getBuilding()
+
+                if building and not seen[building] then
+
+                    local buildingDef = building:getDef()
+                    local keyId = buildingDef:getKeyId()
+
+                    local x1 = buildingDef:getX()
+                    local y1 = buildingDef:getY()
+                    local x2 = buildingDef:getX2()
+                    local y2 = buildingDef:getY2()
+
+                    local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
+
+                    -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
+                    -- 
+
+                    local npcsLeft = 8
+
+                    -- if getGameTime():getDay() >= 15 then
+                    --     -- npcsLeft = 3
+                    --     npcsLeft = 5
+
+                    --     if getGameTime():getDay() >= 18 then
+                    --         npcsLeft = 5
+                    --         -- npcsLeft = 1
+                    --     end
+                    -- end
+
+                    local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
+
+                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
+
+
+
+                    local mainR69 = ModData.getOrCreate("mainR69")
+
+                    -- mainR69.popMultLeft
+
+                    local multLeft = 0.0
+                    local multLeft_OG = 0.0
+
+                    if not mainR69.baseMult then
+                        mainR69.baseMult = 3.0
+                    end
+
+                    if not mainR69.popMultLeft then
+                        mainR69.popMultLeft = mainR69.baseMult
+                    end
+
+                    npcsLeft = 4
+                    local npcsLeft_OG = 4
+
+                    if avgVar1 >= 40 then
+                        multLeft = mainR69.popMultLeft - 0
+                        if multLeft < 0 then
+                            multLeft = 0
+                        end
+                        npcsLeft = math.ceil(npcsLeft * (multLeft))
+                        -- npcsLeft = npcsLeft * 3
+
+                        multLeft_OG = mainR69.baseMult - 0
+                        if multLeft_OG < 0 then
+                            multLeft_OG = 0
+                        end
+                        npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                    else
+
+                        if avgVar1 >= 30 then
+                            multLeft = mainR69.popMultLeft - 1.0
+                            if multLeft < 0 then
+                                multLeft = 0
+                            end
+                            npcsLeft = math.ceil(npcsLeft * (multLeft))
+                            -- npcsLeft = npcsLeft * 2
+
+                            multLeft_OG = mainR69.baseMult - 1.0
+                            if multLeft_OG < 0 then
+                                multLeft_OG = 0
+                            end
+                            npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                        else
+                            if avgVar1 > 23 then
+                                multLeft = mainR69.popMultLeft - 1.5
+                                if multLeft < 0 then
+                                    multLeft = 0
+                                end
+                                npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                -- npcsLeft = math.ceil(npcsLeft * 1.5)
+                                
+                                multLeft_OG = mainR69.baseMult - 1.5
+                                if multLeft_OG < 0 then
+                                    multLeft_OG = 0
+                                end
+                                npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                            else
+
+                                if avgVar1 > 16 then
+                                    multLeft = mainR69.popMultLeft - 2.0
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = (npcsLeft * (1.0))
+
+                                    multLeft_OG = mainR69.baseMult - 2.0
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                                else
+                                    multLeft = mainR69.popMultLeft - 2.5
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = math.ceil(npcsLeft * (0.5))
+
+                                    multLeft_OG = mainR69.baseMult - 2.5
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    -- 
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+                                end
+                            end
+                        end
+
+                    end
+
+
+
+                    if hutsCsv[keyId] == nil then
+                        npcsLeftTotal = npcsLeftTotal + npcsLeft
+                        totLivingNumber_OG = totLivingNumber_OG + npcsLeft_OG
+                    else
+                        if hutsCsv[keyId].npcsLeft >= 0 then
+                            npcsLeftTotal = npcsLeftTotal + hutsCsv[keyId].npcsLeft
+                        end
+                        if hutsCsv[keyId].npcsLeft_OG >= 0 then
+                            totLivingNumber_OG = totLivingNumber_OG + hutsCsv[keyId].npcsLeft_OG
+                        end
+                    end
+
+                    seen[building] = true
+                    count = count + 1
+                end
+            end
+        end
+    end
+
+    -- -- print("Nearby buildings:", count)
+    -- -- print("un-counted civilians number:", npcsLeftTotal)
+    return npcsLeftTotal, totLivingNumber_OG
+    
+end
+
+
+
+
+function ZZA_countNearbyUnCountedHuts(player, radius, step)
+    local count = 0
+
+    local px = math.floor(player:getX())
+    local py = math.floor(player:getY())
+    local pz = player:getZ()
+
+    radius = radius or 30
+    step = step or 4
+
+    local seen = {}
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local npcsLeftTotal = 0
+
+    for x = px - radius, px + radius, step do
+        for y = py - radius, py + radius, step do
+            local square = getCell():getGridSquare(x, y, pz)
+
+            if square then
+                local building = square:getBuilding()
+
+
+
+                if building and not seen[building] then
+
+                    local buildingDef = building:getDef()
+                    local keyId = buildingDef:getKeyId()
+
+                    local x1 = buildingDef:getX()
+                    local y1 = buildingDef:getY()
+                    local x2 = buildingDef:getX2()
+                    local y2 = buildingDef:getY2()
+
+                    local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
+
+                    -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
+                    -- 
+
+                    local npcsLeft = 8
+
+                    -- if getGameTime():getDay() >= 15 then
+                    --     -- npcsLeft = 3
+                    --     npcsLeft = 5
+
+                    --     if getGameTime():getDay() >= 18 then
+                    --         npcsLeft = 5
+                    --         -- npcsLeft = 1
+                    --     end
+                    -- end
+
+                    local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
+
+                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
+
+
+                    npcsLeft = 4
+
+
+
+
+                    local mainR69 = ModData.getOrCreate("mainR69")
+
+                    local multLeft = 0.0
+                    local multLeft_OG = 0.0
+
+                    if not mainR69.baseMult then
+                        mainR69.baseMult = 3.0
+                    end
+
+                    if not mainR69.popMultLeft then
+                        mainR69.popMultLeft = mainR69.baseMult
+                    end
+
+                    npcsLeft = 4
+                    local npcsLeft_OG = 4
+
+                    if avgVar1 >= 40 then
+                        multLeft = mainR69.popMultLeft - 0
+                        if multLeft < 0 then
+                            multLeft = 0
+                        end
+                        npcsLeft = math.ceil(npcsLeft * (multLeft))
+                        -- npcsLeft = npcsLeft * 3
+
+                        multLeft_OG = mainR69.baseMult - 0
+                        if multLeft_OG < 0 then
+                            multLeft_OG = 0
+                        end
+                        npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                    else
+
+                        if avgVar1 >= 30 then
+                            multLeft = mainR69.popMultLeft - 1.0
+                            if multLeft < 0 then
+                                multLeft = 0
+                            end
+                            npcsLeft = math.ceil(npcsLeft * (multLeft))
+                            -- npcsLeft = npcsLeft * 2
+
+                            multLeft_OG = mainR69.baseMult - 1.0
+                            if multLeft_OG < 0 then
+                                multLeft_OG = 0
+                            end
+                            npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                        else
+                            if avgVar1 > 23 then
+                                multLeft = mainR69.popMultLeft - 1.5
+                                if multLeft < 0 then
+                                    multLeft = 0
+                                end
+                                npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                -- npcsLeft = math.ceil(npcsLeft * 1.5)
+                                
+                                multLeft_OG = mainR69.baseMult - 1.5
+                                if multLeft_OG < 0 then
+                                    multLeft_OG = 0
+                                end
+                                npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                            else
+
+                                if avgVar1 > 16 then
+                                    multLeft = mainR69.popMultLeft - 2.0
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = (npcsLeft * (1.0))
+
+                                    multLeft_OG = mainR69.baseMult - 2.0
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+
+                                else
+                                    multLeft = mainR69.popMultLeft - 2.5
+                                    if multLeft < 0 then
+                                        multLeft = 0
+                                    end
+                                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                                    -- npcsLeft = math.ceil(npcsLeft * (0.5))
+
+                                    multLeft_OG = mainR69.baseMult - 2.5
+                                    if multLeft_OG < 0 then
+                                        multLeft_OG = 0
+                                    end
+                                    -- 
+                                    npcsLeft_OG = math.ceil(npcsLeft * (multLeft_OG))
+
+                                end
+                            end
+                        end
+
+                    end
+
+
+
 
 
                     if hutsCsv[keyId] == nil then
@@ -251,17 +1098,17 @@ function ZZA_countNearbyBuildings(player, radius, step)
         end
     end
 
-    -- print("Nearby buildings:", count)
-    -- print("un-counted civilians number:", npcsLeftTotal)
+    -- -- print("Nearby buildings:", count)
+    -- -- print("un-counted civilians number:", npcsLeftTotal)
     return npcsLeftTotal
 end
 
 -- quick test call
 
--- local npcsLeftTotalOut = ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
+-- local npcsLeftTotalOut = ZZA_countNearbyUnCountedHuts(getPlayer(0), 40, 4)
 
 
-local function fixNakedNpcs()
+local function fixNakedNpcs(npc_id_in)
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
     local vipsHere = ModData.getOrCreate("vipsHere")
@@ -272,7 +1119,7 @@ local function fixNakedNpcs()
 
     local dist = 99
 
-    local result = BanditUtils.GetClosestBanditLocationProgram(player, {"Walker", "Entertainer", "Survivor", "Runner", "Inhabitant", "Active", "Babe"})
+    local result = BanditUtils.GetClosestBanditLocationProgram(player, {"Walker", "Entertainer", "Survivor", "Runner", "Inhabitant", "Active", "Babe", "Police", "Postal", "Gardener", "Janitor", "Vandal"})
 
     local brain; local bandit; local npc_id
     local dist = 99
@@ -283,11 +1130,20 @@ local function fixNakedNpcs()
 
     local bx, by, bz
 
+
+    npc_id = nil
+
     if not result.id then
     else
-
-        -- -- pl:Say("found")
         npc_id = result.id
+    end
+
+    if npc_id_in ~= nil then
+        npc_id = npc_id_in
+    end
+
+    if npc_id ~= nil then
+
         babe1 = BanditZombie.GetInstanceById(npc_id)
         bandit = BanditZombie.GetInstanceById(npc_id)
         brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
@@ -296,12 +1152,31 @@ local function fixNakedNpcs()
         by = BanditZombie.GetInstanceById(npc_id):getY();
         bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
         
-        -- print("brain.fullname is " .. brain.fullname)
-        -- print("brain.outfit is " .. tostring(brain.outfit))
-        -- print("brain.female is " .. tostring(brain.female))
+        -- -- print("brain.fullname is " .. brain.fullname)
+        -- -- print("brain.outfit is " .. tostring(brain.outfit))
+        -- -- print("brain.female is " .. tostring(brain.female))
 
-        if tostring(brain.outfit) == "Generic06" and tostring(brain.female) == "true" then
-            -- player:Say("THEY ARE NAKED; GIVE THEM A REAL OUTFIT!!!")
+        -- "IT"
+
+        local replaceOutfit = false
+
+        if tostring(brain.outfit) == "Generic06" or tostring(brain.outfit) == "Tourist" or tostring(brain.outfit) == "BaseballFan_KY"  or tostring(brain.outfit) == "BaseballFan_Rangers" or tostring(brain.outfit) == "BaseballFan_Z" or tostring(brain.outfit) == "Hobbo" or tostring(brain.outfit) == "Cyclist" then
+            replaceOutfit = true
+        end
+
+        if tostring(brain.female) == "false" then
+
+            if tostring(brain.outfit) == "IT" or tostring(brain.outfit) == "Teacher" then
+                replaceOutfit = true
+            end
+
+        end
+
+
+
+        if replaceOutfit == true then
+
+            -- -- player:Say("THEY ARE NAKED; GIVE THEM A REAL OUTFIT!!!")
 
 
             comboTab1 = {fullname=tostring(brain.fullname), deadNow=false, trust=ZombRand(0, 50), keyId=keyId, outfit=tostring(brain.outfit), id=npc_id, day=tonumber(getGameTime():getDay()), hour=tonumber(getGameTime():getHour()), minute=tonumber(getGameTime():getMinutes()), melee=tostring(brain.weapons.melee), primaryGunName=tostring(brain.weapons.primary.name), secondaryGunName=tostring(brain.weapons.secondary.name), bornX=(brain.bornCoords.x), bornY=(brain.bornCoords.y), bornZ=(brain.bornCoords.z), infection=(brain.infection), health=tonumber(brain.health), female=(brain.female), skinTexture=tostring(brain.skinTexture), hairStyle=tostring(brain.hairStyle), hairColorR=(brain.hairColor.r), hairColorG=(brain.hairColor.g), hairColorB=(brain.hairColor.b), beardColorR=(brain.beardColor.r), beardColorG=(brain.beardColor.g), beardColorB=(brain.beardColor.b), lastDistanceSeen=dist, totMinutesAtLastSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))}
@@ -348,8 +1223,8 @@ local function fixNakedNpcs()
 
             end
 
-            -- player:Say("your beard is " .. tostring(brain.beardStyle))
-            -- player:Say("your fullname was " .. tostring(brain.fullname))
+            -- -- player:Say("your beard is " .. tostring(brain.beardStyle))
+            -- -- player:Say("your fullname was " .. tostring(brain.fullname))
 
             -- banditVisuals:setBeardModel("Long")
             banditVisuals:setBeardModel(tostring(comboTab1.beardStyle))
@@ -378,7 +1253,8 @@ local function fixNakedNpcs()
             -- comboTab1.fullname
             bandit:resetModel()
 
-
+            brain.outfit = newOutfit
+            
             if vipsHere[npc_id] ~= nil then
                 vipsHere[npc_id].outfit = newOutfit
             end
@@ -389,213 +1265,6 @@ local function fixNakedNpcs()
 
 end
 
-local function npcChecker()
-
-    local hutsCsv = ModData.getOrCreate("hutsCsv")
-    local vipsHere = ModData.getOrCreate("vipsHere")
-
-    local player = getPlayer(0)
-    local pl = getPlayer(0)
-
-
-    local dist = 99
-
-    local result = BanditUtils.GetClosestBanditLocationProgram(player, {"Walker", "Entertainer", "Survivor", "Runner", "Inhabitant", "Active", "Babe"})
-
-    local brain; local bandit; local npc_id
-    local dist = 99
-
-    local px = player:getX()
-    local py = player:getY()
-    local pz = math.floor(player:getZ())
-
-    local bx, by, bz
-
-    if not result.id then
-    else
-
-    end
-
-    local keyId
-
-
-    local bx, by
-    local tx, ty
-
-    local x1, x2, y1, y2
-
-    
-
-    for k, v in pairs(hutsCsv) do
-        -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
-
-        keyId = tonumber(k)
-
-        bx = v.x; by = v.y
-
-        tx = v.x2; ty = v.y2
-
-
-        if v.x < v.x2 then
-            x1 = v.x
-            x2 = v.x2
-        else
-            x1 = v.x2
-            x2 = v.x
-        end
-        
-        if v.y < v.y2 then
-            y1 = v.y
-            y2 = v.y2
-        else
-            y1 = v.y2
-            y2 = v.y
-        end
-
-    end
-
-    -- if hutsCsv
-    -- hutsCsv
-
-    for k, v in pairs(vipsHere) do
-
-        npc_id = k
-        bandit = BanditZombie.GetInstanceById(npc_id)
-
-        if BanditZombie.GetInstanceById(npc_id) == nil then
-
-            -- 
-            
-            -- v.totMinutesAtLastSeen = (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))
-
-            keyId = v.keyId
-
-
-            if v.lastDistanceSeen < 21 and math.abs(v.totMinutesAtLastSeen - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 5 then
-
-                if hutsCsv[keyId] ~= nil then
-                    if hutsCsv[keyId].npcsLeft > 0 then
-                        hutsCsv[keyId].npcsLeft = hutsCsv[keyId].npcsLeft - 1
-                    else
-                        if hutsCsv[savedKeyId] ~= nil then
-                            if hutsCsv[keyId].npcsLeft > 0 then
-                                hutsCsv[keyId].npcsLeft = hutsCsv[keyId].npcsLeft - 1
-                            else
-
-                                for k, v in pairs(hutsCsv) do
-                                    if v.npcsLeft > 0 then
-                                        keyId = k
-                                        break
-                                    end
-                                end
-
-                                hutsCsv[keyId].npcsLeft = hutsCsv[keyId].npcsLeft - 1
-
-                            end
-                        end
-                    end
-                end
-
-
-                local tx, ty;
-                local bx, by
-
-                local x1, y1
-                local x2, y2
-
-                local totNpcsInRegion = 0
-
-                for k, v in pairs(hutsCsv) do
-                    if v.npcsLeft > 0 then
-                        keyId = k
-
-                        bx = v.x; by = v.y
-
-                        tx = v.x2; ty = v.y2
-
-                        local x1, x2, y1, y2
-
-                        if v.x < v.x2 then
-                            x1 = v.x
-                            x2 = v.x2
-                        else
-                            x1 = v.x2
-                            x2 = v.x
-                        end
-                        
-                        if v.y < v.y2 then
-                            y1 = v.y
-                            y2 = v.y2
-                        else
-                            y1 = v.y2
-                            y2 = v.y
-                        end
-
-                        local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-                        -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-                        -- BanditUtils.DistTo(px, py, x1, y1) < 35 or BanditUtils.DistTo(px, py, x2, y2) < 35 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 35
-
-                        -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100
-
-
-                        if px > x1 and px < x2 and py > y1 and py < y2 then
-                            -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                            totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-                        else
-                            if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                                -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                                totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-                            end
-                        end
-
-
-                    end
-                end
-
-                if totNpcsInRegion < maxNpcs_R69 then
-
-                    pl:Say("[" .. tostring(vipsHere[npc_id].fullname) .. " was killed (SURVIVORS REMAINING IN THIS ZONE: " .. tostring(totNpcsInRegion) .. ")]")
-
-                end
-
-            else
-
-                vipsHere[npc_id] = nil
-
-            end
-
-        else
-
-            brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
-
-            bx = BanditZombie.GetInstanceById(npc_id):getX();
-            by = BanditZombie.GetInstanceById(npc_id):getY();
-            bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
-
-
-            dist = BanditUtils.DistTo(px, py, bx, by)
-
-            if BanditZombie.GetInstanceById(npc_id) ~= nil then
-
-                v.totMinutesAtLastSeen = (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))
-
-                v.lastDistanceSeen = dist
-
-            end
-
-        end
-
-
-
-    end
-
-
-end
-
-
---         fixSpawnedToMatch("ALWAYS SHOW")
 
 local function fixSpawnedToMatch(display_mode_in)
 
@@ -613,17 +1282,16 @@ local function fixSpawnedToMatch(display_mode_in)
     local pz = math.floor(player:getZ())
 
 
-    for k, v in pairs(vipsHere) do
-        -- hutsCsv[k] = nil
-        -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-        -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
+    -- for k, v in pairs(vipsHere) do
+    --     -- hutsCsv[k] = nil
+    --     -- -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
 
-    end
+    -- end
 
 
-    local hutsCsv = ModData.getOrCreate("hutsCsv")
 
-    local livingNumber_OG = 0
+    local npcsLeft_OG = 0
 
     local tx, ty;
     local bx, by
@@ -635,96 +1303,16 @@ local function fixSpawnedToMatch(display_mode_in)
 
     local totHutsNearby = 0
 
-    -- totHutsNearby
-
-
-
-    if BWOScheduler.WorldAge <= 132 then
-        maxNpcs_R69 = 15
-    else
-        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
-
-        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
-        
-    end
-
-    local approxHutsCount = 0; 
-    
-    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 2)
-
-    if approxHutsCount > 0 then
-        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
-    end
-
-
-    for k, v in pairs(hutsCsv) do
-        if v.npcsLeft > 0 then
-            keyId = k
-
-            bx = v.x; by = v.y
-
-            tx = v.x2; ty = v.y2
-
-            local x1, x2, y1, y2
-
-            if v.x < v.x2 then
-                x1 = v.x
-                x2 = v.x2
-            else
-                x1 = v.x2
-                x2 = v.x
-            end
-            
-            if v.y < v.y2 then
-                y1 = v.y
-                y2 = v.y2
-            else
-                y1 = v.y2
-                y2 = v.y
-            end
-
-            local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-            
-            if px > x1 and px < x2 and py > y1 and py < y2 then
-
-                maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-                
-                totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-            else
-                if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                    
-                    maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-
-                    totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-
-
-
-                    totHutsNearby = totHutsNearby + 1
-
-                    livingNumber_OG = livingNumber_OG + v.livingNumber_OG
-
-                end
-            end
-
-        end
-    end
-
-    livingNumber_OG = livingNumber_OG + approxHutsCount
-
-    totNpcsInRegion = totNpcsInRegion + approxHutsCount
-
-    -- totNpcsInRegion = maxNpcs_R69
-
-    -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-
-    -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-
-
+    local mainR69 = ModData.getOrCreate("mainR69")
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
     local vipsHere = ModData.getOrCreate("vipsHere")
+
+    -- for k, v in pairs(hutsCsv) do
+    --     -- print("OG=" .. tostring(hutsCsv[k].npcsLeft_OG) .. ", npcsLeft=" .. tostring(hutsCsv[k].npcsLeft))
+    --     -- hutsCsv[k] = nil
+    -- end
+
 
     local player = getPlayer(0)
     local pl = getPlayer(0)
@@ -775,241 +1363,50 @@ local function fixSpawnedToMatch(display_mode_in)
     local prg
 
     local npcBuffer = 0
-    -- npcBuffer = 15
 
-
-    -- quickCountNearbyNpcs_R69
-
-    -- pl:Say("[totNpcsInRegion is " .. tostring(totNpcsInRegion))
-
-    -- pl:Say("[CIVILIANS NEARBY: " .. tostring(quickCountNearbyNpcs_R69) .. " (OUT OF " .. tostring(totNpcsInRegion) .. " TOTAL SURVIVING RESIDENTS OF THIS REGION)]")
-
-    -- pl:Say("[REMAINING RESIDENTS STILL SURVIVING IN THIS REGION: " .. tostring(totNpcsInRegion) .. "]")
-
-
-    npcBuffer = 15
-
-
-
-
-
-    if quickCountNearbyNpcs_R69 > npcBuffer + totNpcsInRegion then
-        
-
-        for i = 0, zombieList:size() - 1 do
-
-            zombie = zombieList:get(i)
-            
-            if zombie then
-                if zombie:isAlive() then
-
-
-                    bx = zombie:getX()
-                    by = zombie:getY()
-
-                    bz = math.floor(zombie:getZ())
-
-                    dist = BanditUtils.DistTo(px, py, bx, by)
-
-                    --     local result = BanditUtils.GetClosestBanditLocationProgram(player, {"Walker", "Survivor", "Runner", "Inhabitant", "Active"})
-
-
-
-                    if zombie:getVariableBoolean("Bandit") then
-                        brain = BanditBrain.Get(zombie)
-                        prg = brain.program.name
-
-                        if pz ~= bz then
-                            
-                            dist = dist + ( (math.abs(pz - bz)) * 10)
-
-                        end
-
-                        npc_id = brain.id
-                        bandit = BanditZombie.GetInstanceById(npc_id)
-
-                        if prg == "Walker" or prg == "Active" or prg == "Survivor" or prg == "Runner" or prg == "Inhabitant" then
-
-                            pl:Say("found a possible npc to de-spawn...")
-
-                            npc_id = result.id
-                            babe1 = BanditZombie.GetInstanceById(npc_id)
-                            bandit = BanditZombie.GetInstanceById(npc_id)
-                            brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
-
-                            bx = BanditZombie.GetInstanceById(npc_id):getX();
-                            by = BanditZombie.GetInstanceById(npc_id):getY();
-                            bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
-
-                            dist = BanditUtils.DistTo (px, py, bx, by)
-
-                            if bz ~= pz then
-                                dist = dist + 7
-                            end
-
-                            if vipsHere[npc_id] ~= nil then
-                                vipsHere[npc_id] = nil
-                            end
-
-                            local babe3 = bandit
-                            
-                            if dist > 25 then
-                                
-                                if tostring(player:CanSee(babe3)) == "false" or tostring(getPlayer(getPlayer():getPlayerNum()):isFacingLocation(babe3:getX(), babe3:getY(), 0.3)) == "false" or tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" or dist > 21 then
-
-                                    zombieObj = BanditZombie.GetInstanceById(npc_id)
-
-                                    zombieObj:removeFromSquare()
-                                    zombieObj:removeFromWorld()
-
-                                    args = { id = npc_id } -- ✅ don’t leak globals
-                                    sendClientCommand(player, "Commands", "BanditRemove", args)
-
-                                    quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
-
-                                    pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING!")
-
-                                    break
-
-                                end
-                            
-                            end
-                                
-
-                            
-                        end
-
-                    end
-
-                end
-
-            end
-
-        end
-
-    end
-
-
-
-    -- pl:Say("[REMAINING RESIDENTS STILL SURVIVING IN THIS REGION: " .. tostring(totNpcsInRegion) .. "]")
-
-
-    -- if quickCountNearbyNpcs_R69 <= totNpcsInRegion then
-    --     pl:Say("[CIVILIANS NEARBY: " .. tostring(quickCountNearbyNpcs_R69) .. " (OUT OF " .. tostring(totNpcsInRegion) .. " TOTAL SURVIVING RESIDENTS OF THIS REGION)]")
-    -- else
-    
-
-    --     pl:Say("[CIVILIANS NEARBY: " .. tostring(quickCountNearbyNpcs_R69) .. " (OUT OF " .. tostring(totNpcsInRegion) .. " TOTAL SURVIVING RESIDENTS OF THIS REGION)]")
-
-    -- end
-
-
-
-
-
+    npcBuffer = 5
 
 
     local nonResidents = 0
 
-    if quickCountNearbyNpcs_R69 - totNpcsInRegion > 0 then
-        nonResidents = quickCountNearbyNpcs_R69 - totNpcsInRegion
-    end
+    -- nonResidents
 
+    local TEXT_maxNpcs_R69_OG, TEXT_maxNpcs_R69
 
-
-
-
-    -- fixSpawnedToMatch("SHOW IF WORTH SHOWING")
-
-    if livingNumber_OG > 100 then
-        livingNumber_OG = 100
-    end
-
-    if totNpcsInRegion > 100 then
-        totNpcsInRegion = 100
-    end
-
-    if tostring(display_mode_in) == "ALWAYS SHOW" then
-        pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-
+    if maxNpcs_R69_OG > 100 then
+        TEXT_maxNpcs_R69_OG = "100+"
     else
+        TEXT_maxNpcs_R69_OG = tostring(maxNpcs_R69_OG)        
+    end
+
+    if maxNpcs_R69 > 100 then
+        TEXT_maxNpcs_R69 = "100+"
+    else
+        TEXT_maxNpcs_R69 = tostring(maxNpcs_R69)
+    end
 
 
-        if tostring(display_mode_in) == "SHOW IF WORTH SHOWING" then
 
 
-            -- MOSTLY WONT SHOW
-            if ZombRand(1, 100) > 75 then
+    if maxNpcs_R69 > maxNpcs_R69_OG then
+        nonResidents = maxNpcs_R69 - maxNpcs_R69_OG
 
-                if livingNumber_OG > 50 then
-                    pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-                end
-                
-            else
-
-                if totNpcsInRegion > 0 and totHutsNearby > 3 then
-                
-                    if totNpcsInRegion < (livingNumber_OG - 10) or totNpcsInRegion > 25 then
-                        pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-                    end
-
-
-                else
-                    if totNpcsInRegion > 0 and totHutsNearby >= 1 and totNpcsInRegion < livingNumber_OG then
-
-                        pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-
-                    end
-                end
-
-            end
-
-
+        if maxNpcs_R69 > 100 then
+            TEXT_maxNpcs_R69 = "100+"
         else
-
-            if tostring(display_mode_in) == "MOSTLY WONT SHOW" and ZombRand(1, 1000) > 700 then
-
-                if livingNumber_OG >= 80 and totNpcsInRegion < livingNumber_OG - 10 then
-
-                    pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-
-                else
-
-                    if livingNumber_OG >= 100 and totNpcsInRegion < livingNumber_OG - 5 then
-                        pl:Say("[ CURRENT ZONE HAS " .. tostring(totNpcsInRegion) .. " of " .. tostring(livingNumber_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(totNpcsInRegion) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
-                    end
-
-                end
-
-
-            end
-
+            TEXT_maxNpcs_R69 = tostring(maxNpcs_R69 - nonResidents)
         end
 
 
-
-
     end
+
 
     
 
-    if quickCountNearbyNpcs_R69 > totNpcsInRegion and totNpcsInRegion > 5 then
-
-        -- pl:Say("[ " .. tostring(quickCountNearbyNpcs_R69 - (quickCountNearbyNpcs_R69 - totNpcsInRegion)) .. " OUT OF " .. tostring(totNpcsInRegion) .. " OF THE TOTAL SURVIVING KNOWN RESIDENTS OF THIS AREA ARE CURRENTLY PRESENT NEARBY (AS WELL AS " .. tostring(quickCountNearbyNpcs_R69 - totNpcsInRegion) .. " NON-RESIDENTS FROM ELSE-WHERE)]")
-
-        -- pl:Say("[ " .. tostring(quickCountNearbyNpcs_R69 - (quickCountNearbyNpcs_R69 - totNpcsInRegion)) .. " OF THE ORIGINAL " .. tostring(livingNumber_OG) .. " RESIDENTS OF THIS AREA ARE STILL ALIVE. " .. tostring(totNpcsInRegion) .. " ARE HERE NOW AS WELL AS " .. tostring(quickCountNearbyNpcs_R69 - totNpcsInRegion) .. " NON-RESIDENTS FROM ELSEWHERE)]")
-
-
-    else
-
-        -- pl:Say("[ " .. tostring(quickCountNearbyNpcs_R69) .. " OUT OF " .. tostring(totNpcsInRegion) .. " OF THE TOTAL SURVIVING KNOWN RESIDENTS OF THIS AREA ARE CURRENTLY PRESENT NEARBY ]")
-
-        -- pl:Say("[ " .. tostring(quickCountNearbyNpcs_R69) .. " OUT OF " .. tostring(totNpcsInRegion) .. " OF THE TOTAL SURVIVING KNOWN RESIDENTS OF THIS AREA ARE CURRENTLY PRESENT NEARBY (" .. tostring(totNpcsInRegion) .. " OF " .. tostring(livingNumber_OG) .. " REMAINING) ]")
-
+    if tostring(display_mode_in) == "ALWAYS SHOW" then
+        pl:Say("[ CURRENT AREA HAS " .. tostring(TEXT_maxNpcs_R69) .. " of " .. tostring(TEXT_maxNpcs_R69_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(quickCountNearbyNpcs_R69 - nonResidents) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
 
     end
-
-
 
 end
 
@@ -1018,7 +1415,6 @@ local function npcHandler()
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
     local vipsHere = ModData.getOrCreate("vipsHere")
-
 
     local cell = getCell()
     local zombieList = cell:getZombieList()
@@ -1080,7 +1476,6 @@ local function npcHandler()
         if zombie then
             if zombie:isAlive() then
 
-
                 local bx = zombie:getX()
                 local by = zombie:getY()
 
@@ -1093,9 +1488,7 @@ local function npcHandler()
                     local prg = brain.program.name
 
                     if pz ~= bz then
-                        
                         dist = dist + ( (math.abs(pz - bz)) * 10)
-
                     end
 
                     npc_id = brain.id
@@ -1103,192 +1496,50 @@ local function npcHandler()
 
                     if brain.program.name ~= "Bandit" then
 
-                        if dist > 25 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
-                        
-                        end
+                        if dist > 25 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" and quickCountNearbyNpcs_R69 > maxNpcs_R69 then
 
-                        -- vipsHere[npc_id] 
+                            if brain.program.name == "Inhabitant" or brain.program.name == "Walker" or brain.program.name == "Active" or brain.program.name == "Runner" or brain.program.name == "Survivor" then
 
-                        if BanditZombie.GetInstanceById(npc_id) ~= nil then
+                                if BanditUtils.DistTo(px, py, (bx), (by)) > 10 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
+                                    
+                                    local zombieObj = BanditZombie.GetInstanceById(npc_id)
 
+                                    zombieObj:removeFromSquare()
+                                    zombieObj:removeFromWorld()
 
-                            brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
+                                    local args = { id = npc_id } -- ✅ don’t leak globals
+                                    sendClientCommand(player, "Commands", "BanditRemove", args)
 
-
-
-                            local bx, by
-                            local tx, ty
-
-                            local keyIdForNpc = nil
-
-                            for k, v in pairs(hutsCsv) do
-                                -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
-
-                                keyId = tonumber(k)
-
-                                bx = v.x; by = v.y
-
-                                tx = v.x2; ty = v.y2
-
-                                local x1, x2, y1, y2
-
-                                if v.x < v.x2 then
-                                    x1 = v.x
-                                    x2 = v.x2
-                                else
-                                    x1 = v.x2
-                                    x2 = v.x
-                                end
-                                
-                                if v.y < v.y2 then
-                                    y1 = v.y
-                                    y2 = v.y2
-                                else
-                                    y1 = v.y2
-                                    y2 = v.y
-                                end
+                                    pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
 
 
+                                    quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
-                                if px > x1 and px < x2 and py > y1 and py < y2 then
-                                    keyIdForNpc = keyId
-                                else
-                                    if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
+                                    local vipsHere = ModData.getOrCreate("vipsHere")
 
-                                        if v.npcsLeft > 0 then
-                                            keyId = tonumber(k)
-
-                                            keyIdForNpc = keyId
-
-                                            break
-
-
-                                        end
-
-
-
-                                        
-
+                                    if vipsHere[npc_id] ~= nil then
+                                        vipsHere[npc_id] = nil
+                                        -- vipsHere[npc_id] = nil
                                     end
+
+
                                 end
 
 
                             end
 
-                            keyId=keyIdForNpc
+                        else
 
-                            if keyId == nil then
-                                -- hutsCsv[keyId]
-                                if hutsCsv[savedKeyId] ~= nil then
-                        
-                                    if hutsCsv[savedKeyId].npcsLeft > 0 then
-                                        keyId = savedKeyId
-                                    end
-                                end
-                    
-                            end
+                            if vipsHere[npc_id] == nil then                                
 
-                            if keyId == nil then
+                                if quickCountNearbyNpcs_R69 < maxNpcs_R69 then
 
-                                for k, v in pairs(hutsCsv) do
-                                    -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
-
-                                    if v.npcsLeft > 0 then
-                                        keyId = tonumber(k)
-
-                                        stillNpcsAliveNearby = true
-                                    else
-                                        if stillNpcsAliveNearby == true then
-
-                                        else
-                                            stillNpcsAliveNearby = false
-                                        end
-                                    end
-
-                                end
-
-                            end
-
-                            if hutsCsv[keyId] == nil then
-
-                                for k, v in pairs(hutsCsv) do
-                                    -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
-
-                                    if v.npcsLeft > 0 then
-                                        keyId = tonumber(k)
-
-                                        stillNpcsAliveNearby = true
-                                    else
-                                        if stillNpcsAliveNearby == true then
-
-                                        else
-                                            stillNpcsAliveNearby = false
-                                        end
-                                    end
-                                end
-
-                            end
-
-                            if keyId == nil then
-
-                            else
-
-                                if hutsCsv[keyId] == nil then
-
-
-                                else
-                                
                                     comboTab1 = {fullname=tostring(brain.fullname), deadNow=false, trust=ZombRand(0, 50), keyId=keyId, outfit=tostring(brain.outfit), id=npc_id, day=tonumber(getGameTime():getDay()), hour=tonumber(getGameTime():getHour()), minute=tonumber(getGameTime():getMinutes()), melee=tostring(brain.weapons.melee), primaryGunName=tostring(brain.weapons.primary.name), secondaryGunName=tostring(brain.weapons.secondary.name), bornX=(brain.bornCoords.x), bornY=(brain.bornCoords.y), bornZ=(brain.bornCoords.z), infection=(brain.infection), health=tonumber(brain.health), female=(brain.female), skinTexture=tostring(brain.skinTexture), hairStyle=tostring(brain.hairStyle), hairColorR=(brain.hairColor.r), hairColorG=(brain.hairColor.g), hairColorB=(brain.hairColor.b), beardColorR=(brain.beardColor.r), beardColorG=(brain.beardColor.g), beardColorB=(brain.beardColor.b), lastDistanceSeen=dist, totMinutesAtLastSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))}
 
                                     vipsHere[npc_id] = comboTab1
 
                                 end
-                                
-
                             end
-
-                            if stillNpcsAliveNearby == false then
-
-                                    comboTab1 = {fullname=tostring(brain.fullname), deadNow=false, trust=ZombRand(0, 50), keyId=keyId, outfit=tostring(brain.outfit), id=npc_id, day=tonumber(getGameTime():getDay()), hour=tonumber(getGameTime():getHour()), minute=tonumber(getGameTime():getMinutes()), melee=tostring(brain.weapons.melee), primaryGunName=tostring(brain.weapons.primary.name), secondaryGunName=tostring(brain.weapons.secondary.name), bornX=(brain.bornCoords.x), bornY=(brain.bornCoords.y), bornZ=(brain.bornCoords.z), infection=(brain.infection), health=tonumber(brain.health), female=(brain.female), skinTexture=tostring(brain.skinTexture), hairStyle=tostring(brain.hairStyle), hairColorR=(brain.hairColor.r), hairColorG=(brain.hairColor.g), hairColorB=(brain.hairColor.b), beardColorR=(brain.beardColor.r), beardColorG=(brain.beardColor.g), beardColorB=(brain.beardColor.b), lastDistanceSeen=dist, totMinutesAtLastSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))}
-
-                                    if vipsHere[npc_id] == nil then
-
-                                        if brain.program.name == "Inhabitant" or brain.program.name == "Walker" or brain.program.name == "Active" or brain.program.name == "Runner" or brain.program.name == "Survivor" then
-
-                                            if BanditUtils.DistTo(px, py, (bx), (by)) > 10 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
-                                                
-                                                local zombieObj = BanditZombie.GetInstanceById(npc_id)
-
-                                                zombieObj:removeFromSquare()
-                                                zombieObj:removeFromWorld()
-
-                                                local args = { id = npc_id } -- ✅ don’t leak globals
-                                                sendClientCommand(player, "Commands", "BanditRemove", args)
-
-                                                quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
-
-                                                local vipsHere = ModData.getOrCreate("vipsHere")
-
-                                                if vipsHere[npc_id] ~= nil then
-                                                    vipsHere[npc_id] = nil
-                                                    -- vipsHere[npc_id] = nil
-                                                end
-
-
-                                            end
-
-
-                                        end
-
-
-                                    end
-
-                            end
-
-
-                            -- vipsHere[brain.id]
-
-
                         end
 
 
@@ -1304,14 +1555,22 @@ local function npcHandler()
 end
 
 
+-- quickCountNearbyNpcs_R69
+
+-- maxNpcs_R69
+
+
 
 local function simpWalkerSpawner(x_in, y_in, z_in)
+
+    -- do return end
 
     local event = {}
     local player = getPlayer(0)
     local pl = getPlayer(0)
 
 
+    local outputForSimp = nil
 
     local px = player:getX()
     local py = player:getY()
@@ -1350,7 +1609,7 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
 
     end
-    -- print("footstepMatHere is " .. tostring(footstepMatHere))
+    -- -- print("footstepMatHere is " .. tostring(footstepMatHere))
 
     -- if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Sand" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic"
 
@@ -1362,12 +1621,14 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
     event.program = {}
     event.bandits = {}
 
+    -- event.program.name = "Survivor"
+    -- event.program.stage = "Main"
 
-    pl:Say("simpWalkerSpawner CALLED!")
+    -- pl:Say("simpWalkerSpawner CALLED!")
 
-    if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" or ZombRand(1, 100) > 70 then
+    if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" or ZombRand(1, 1000) > 980 then
 
-        pl:Say("simpWalkerSpawner beat rando!")
+        -- pl:Say("simpWalkerSpawner beat rando!")
 
         if getGameTime():getDay() < 13 then
 
@@ -1414,14 +1675,21 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
         config.clanId = 0
 
 
-        if getGameTime():getDay() < 13 then
+        if getGameTime():getDay() <= 12 then
 
-            if ZombRand(1, 100) > 90 then
+            if SandboxVars.BanditsWeekOne.StreetsPistolChance > ZombRand(0, 100) then
+
+                -- -- SandboxVars.BanditsWeekOne.StreetsPistolChance: def
+
+                -- config.hasPistolChance = SandboxVars.BanditsWeekOne.InhabitantsPistolChance
+
+                -- ((SandboxVars.BanditsWeekOne.InhabitantsPistolChance + SandboxVars.BanditsWeekOne.StreetsPistolChance) / 2)
+
 
                 config.hasRifleChance = 0
                 config.hasPistolChance = 100
                 config.rifleMagCount = 0
-                config.pistolMagCount = ZombRand(2, 5)
+                config.pistolMagCount = ZombRand(1, 8)
 
             else
 
@@ -1436,17 +1704,14 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
             if getGameTime():getDay() <= 14 then
 
-                if ZombRand(1, 100) > 50 then
+                if SandboxVars.BanditsWeekOne.StreetsPistolChance + 20 > ZombRand(0, 100) then
 
 
-                    if ZombRand(1, 100) > 75 then
+                    if 1 + 1 == 2 then
 
                         config.hasRifleChance = 0
                         config.rifleMagCount = 0
 
-                    else
-                        config.hasRifleChance = 100
-                        config.rifleMagCount = ZombRand(3, 8)
                     end
 
                     config.hasPistolChance = 100
@@ -1463,149 +1728,158 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
             else
 
+                if SandboxVars.BanditsWeekOne.StreetsPistolChance + 40 > ZombRand(0, 100) then
+
+                    if ZombRand(0, 900) < 1000 then
+
+                        config.hasRifleChance = 0
+                        config.rifleMagCount = 0
+
+                    else
+                        config.hasRifleChance = 0
+                        config.rifleMagCount = 0
+                    end
+
+                    config.hasPistolChance = 100
+                    config.pistolMagCount = ZombRand(1, 9)
+
+                else
+
+                    config.hasRifleChance = 0
+                    config.hasPistolChance = 0
+                    config.rifleMagCount = 0
+                    config.pistolMagCount = 0
+
+                end
+
             end
+        end
+
+
+        if getGameTime():getDay() >= 15 then
+
+            if ZombRand(0, 100) > 75 or (SandboxVars.BanditsWeekOne.StreetsPistolChance + SandboxVars.BanditsWeekOne.InhabitantsPistolChance) / 2 > ZombRand(0, 100) then
+                config.hasPistolChance = 100
+                config.pistolMagCount = ZombRand(1, 8)
+            end
+
+            -- config.rifleMagCount = 0
+
         end
 
 
         bandit = BanditCreator.MakeFromWave(config)
 
-        local eyesAdded = 0
 
-        if ZombRand(1, 100) > 50 then
-            eyesAdded = (-0.1) * (ZombRand(1, 5))
-        else
-            eyesAdded = (0.1) * (ZombRand(1, 5))
-        end
 
-        bandit.accuracyBoost = 1.0 + eyesAdded
+        local cm = getWorld():getClimateManager()
+        local rainIntensity = cm:getRainIntensity()
 
-        if getGameTime():getDay() >= 16 then
+
+        local maleOutfits
+        local femaleOutfits
+
+        local player = getPlayer(0)
+
+        if ZombRand(1, 100) > 50 or getGameTime():getDay() >= 14 then
+
+            local eyesAdded = 0
 
             if ZombRand(1, 100) > 50 then
-                bandit.accuracyBoost = 1.4 + eyesAdded
+                eyesAdded = (-0.1) * (ZombRand(1, 5))
+            else
+                eyesAdded = (0.1) * (ZombRand(1, 5))
             end
 
-        end
+            bandit.accuracyBoost = 1.0 + eyesAdded
 
-
-
-
-        if ZombRand(1, 100) > 50 then
-            eyesAdded = (-0.1) * (ZombRand(1, 10))
-        else
-            eyesAdded = (0.1) * (ZombRand(1, 10))
-        end
-
-
-
-        BanditClan.Civilians.health = 2.0 + eyesAdded
-
-
-
-        bandit.weapons.melee = "Base.BareHands"
-
-        local text2Tab = {
-            "Base.SpearCrafted",
-            "Base.SpearBreadKnife",
-            "Base.SpearButterKnife",
-            "Base.SpearFork",
-            "Base.SpearHandFork",
-            "Base.SpearHuntingKnife",
-            "Base.SpearIcePick",
-            "Base.SpearKnife",
-            "Base.SpearLetterOpener",
-            "Base.SpearMachete",
-            "Base.SpearScalpel",
-            "Base.SpearScissors",
-            "Base.SpearScrewdriver",
-            "Base.SpearSpoon",
-            "Base.WoodenLance",
-            "Base.Katana",
-            "Base.Machete",
-            "Base.ChairLeg",
-            "Base.ClubHammer",
-            "Base.Hammer",
-            "Base.LeadPipe",
-            "Base.MetalBar",
-            "Base.MetalPipe",
-            "Base.PickAxeHandle",
-            "Base.PipeWrench",
-            "Base.PickAxeHandleSpiked",
-            "Base.TableLeg",
-            "Base.Wrench",
-            "Base.BaseballBat",
-            "Base.CanoePadel",
-            "Base.CanoePadelX2",
-            "Base.Crowbar",
-            "Base.Golfclub",
-            "Base.HockeyStick",
-            "Base.IceHockeyStick",
-            "Base.Shovel",
-            "Base.Shovel2",
-            "Base.Sledgehammer",
-            "Base.Sledgehammer2",
-            "Base.BaseballBatNails",
-            "Base.PlankNail",
-            "Base.Axe",
-            "Base.HandAxe",
-            "Base.PickAxe",
-            "Base.WoodAxe",
-        }
-
-
-        local text
-
-        if getGameTime():getDay() < 10 then
-            bandit.weapons.melee = "Base.BareHands"
-
-
-            if ZombRand(1, 100) > 80 then
-
-
-                text2Tab = {
-                        "Base.ChairLeg",
-                        "Base.ClubHammer",
-                        "Base.Hammer",
-                        "Base.Wrench",
-                        "Base.BaseballBat",
-                        "Base.CanoePadel",
-                        "Base.Crowbar",
-                        "Base.Golfclub",
-                        "Base.HockeyStick",
-                        "Base.IceHockeyStick",
-                        "Base.Shovel",
-                        "Base.Shovel2",
-                        "Base.Axe",
-                }
-
-                text = text2Tab[ZombRand(1, (#text2Tab))]
-
-                bandit.weapons.melee = text
-
-            end
-
-
-        else
-
-            if getGameTime():getDay() < 14 then
-
+            if getGameTime():getDay() >= 16 then
 
                 if ZombRand(1, 100) > 50 then
-        
+                    bandit.accuracyBoost = 1.4 + eyesAdded
+                end
+
+            end
+
+            if ZombRand(1, 100) > 50 then
+                eyesAdded = (-0.1) * (ZombRand(1, 10))
+            else
+                eyesAdded = (0.1) * (ZombRand(1, 10))
+            end
+
+
+
+            BanditClan.Civilians.health = 2.0 + eyesAdded
+
+
+
+            bandit.weapons.melee = "Base.BareHands"
+
+            local text2Tab = {
+                "Base.SpearCrafted",
+                "Base.SpearBreadKnife",
+                "Base.SpearButterKnife",
+                "Base.SpearFork",
+                "Base.SpearHandFork",
+                "Base.SpearHuntingKnife",
+                "Base.SpearIcePick",
+                "Base.SpearKnife",
+                "Base.SpearLetterOpener",
+                "Base.SpearMachete",
+                "Base.SpearScalpel",
+                "Base.SpearScissors",
+                "Base.SpearScrewdriver",
+                "Base.SpearSpoon",
+                "Base.WoodenLance",
+                "Base.Katana",
+                "Base.Machete",
+                "Base.ChairLeg",
+                "Base.ClubHammer",
+                "Base.Hammer",
+                "Base.LeadPipe",
+                "Base.MetalBar",
+                "Base.MetalPipe",
+                "Base.PickAxeHandle",
+                "Base.PipeWrench",
+                "Base.PickAxeHandleSpiked",
+                "Base.TableLeg",
+                "Base.Wrench",
+                "Base.BaseballBat",
+                "Base.CanoePadel",
+                "Base.CanoePadelX2",
+                "Base.Crowbar",
+                "Base.Golfclub",
+                "Base.HockeyStick",
+                "Base.IceHockeyStick",
+                "Base.Shovel",
+                "Base.Shovel2",
+                "Base.Sledgehammer",
+                "Base.Sledgehammer2",
+                "Base.BaseballBatNails",
+                "Base.PlankNail",
+                "Base.Axe",
+                "Base.HandAxe",
+                "Base.PickAxe",
+                "Base.WoodAxe",
+            }
+
+
+            local text
+
+            if getGameTime():getDay() < 10 then
+                bandit.weapons.melee = "Base.BareHands"
+
+
+                if ZombRand(1, 100) > 80 then
+
+
                     text2Tab = {
                             "Base.ChairLeg",
                             "Base.ClubHammer",
                             "Base.Hammer",
-                            "Base.LeadPipe",
-                            "Base.MetalBar",
-                            "Base.MetalPipe",
-                            "Base.PickAxeHandle",
-                            "Base.PipeWrench",
-                            "Base.TableLeg",
                             "Base.Wrench",
                             "Base.BaseballBat",
                             "Base.CanoePadel",
-                            "Base.CanoePadelX2",
                             "Base.Crowbar",
                             "Base.Golfclub",
                             "Base.HockeyStick",
@@ -1614,99 +1888,141 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
                             "Base.Shovel2",
                             "Base.Axe",
                     }
+
+                    text = text2Tab[ZombRand(1, (#text2Tab))]
+
+                    bandit.weapons.melee = text
+
                 end
-                
-
-                text = text2Tab[ZombRand(1, (#text2Tab))]
-
-                bandit.weapons.melee = text
 
 
             else
 
-                if ZombRand(1, 100) > 70 then
+                if getGameTime():getDay() < 14 then
 
-                    text2Tab = {
-                            "Base.Katana",
-                            "Base.Machete",
-                            "Base.ClubHammer",
-                            "Base.Hammer",
-                            "Base.LeadPipe",
-                            "Base.MetalBar",
-                            "Base.MetalPipe",
-                            "Base.PickAxeHandle",
-                            "Base.PipeWrench",
-                            "Base.PickAxeHandleSpiked",
-                            "Base.Wrench",
-                            "Base.BaseballBat",
-                            "Base.Crowbar",
-                            "Base.Sledgehammer",
-                            "Base.Sledgehammer2",
-                            "Base.BaseballBatNails",
-                            "Base.PlankNail",
-                            "Base.Axe",
-                            "Base.HandAxe",
-                            "Base.PickAxe",
-                            "Base.WoodAxe",
-                    }
+
+                    if ZombRand(1, 100) > 50 then
+            
+                        text2Tab = {
+                                "Base.ChairLeg",
+                                "Base.ClubHammer",
+                                "Base.Hammer",
+                                "Base.LeadPipe",
+                                "Base.MetalBar",
+                                "Base.MetalPipe",
+                                "Base.PickAxeHandle",
+                                "Base.PipeWrench",
+                                "Base.TableLeg",
+                                "Base.Wrench",
+                                "Base.BaseballBat",
+                                "Base.CanoePadel",
+                                "Base.CanoePadelX2",
+                                "Base.Crowbar",
+                                "Base.Golfclub",
+                                "Base.HockeyStick",
+                                "Base.IceHockeyStick",
+                                "Base.Shovel",
+                                "Base.Shovel2",
+                                "Base.Axe",
+                        }
+                    end
+                    
+
+                    text = text2Tab[ZombRand(1, (#text2Tab))]
+
+                    bandit.weapons.melee = text
+
 
                 else
 
-                    text2Tab = {
-                            "Base.SpearCrafted",
-                            "Base.SpearBreadKnife",
-                            "Base.SpearButterKnife",
-                            "Base.SpearFork",
-                            "Base.SpearHandFork",
-                            "Base.SpearHuntingKnife",
-                            "Base.SpearIcePick",
-                            "Base.SpearKnife",
-                            "Base.SpearLetterOpener",
-                            "Base.SpearMachete",
-                            "Base.SpearScalpel",
-                            "Base.SpearScissors",
-                            "Base.SpearScrewdriver",
-                            "Base.SpearSpoon",
-                            "Base.WoodenLance",
-                            "Base.Katana",
-                            "Base.Machete",
-                            "Base.ChairLeg",
-                            "Base.ClubHammer",
-                            "Base.Hammer",
-                            "Base.LeadPipe",
-                            "Base.MetalBar",
-                            "Base.MetalPipe",
-                            "Base.PickAxeHandle",
-                            "Base.PipeWrench",
-                            "Base.PickAxeHandleSpiked",
-                            "Base.TableLeg",
-                            "Base.Wrench",
-                            "Base.BaseballBat",
-                            "Base.CanoePadel",
-                            "Base.CanoePadelX2",
-                            "Base.Crowbar",
-                            "Base.Golfclub",
-                            "Base.HockeyStick",
-                            "Base.IceHockeyStick",
-                            "Base.Shovel",
-                            "Base.Shovel2",
-                            "Base.Sledgehammer",
-                            "Base.Sledgehammer2",
-                            "Base.BaseballBatNails",
-                            "Base.PlankNail",
-                            "Base.Axe",
-                            "Base.HandAxe",
-                            "Base.PickAxe",
-                            "Base.WoodAxe",
-                            "Base.IcePick",
-                            "Base.HuntingKnife"
+                    if ZombRand(1, 100) > 70 then
+
+                        text2Tab = {
+                                "Base.Katana",
+                                "Base.Machete",
+                                "Base.ClubHammer",
+                                "Base.Hammer",
+                                "Base.LeadPipe",
+                                "Base.MetalBar",
+                                "Base.MetalPipe",
+                                "Base.PickAxeHandle",
+                                "Base.PipeWrench",
+                                "Base.PickAxeHandleSpiked",
+                                "Base.Wrench",
+                                "Base.BaseballBat",
+                                "Base.Crowbar",
+                                "Base.Sledgehammer",
+                                "Base.Sledgehammer2",
+                                "Base.BaseballBatNails",
+                                "Base.PlankNail",
+                                "Base.Axe",
+                                "Base.HandAxe",
+                                "Base.PickAxe",
+                                "Base.WoodAxe",
                         }
+
+                    else
+
+                        text2Tab = {
+                                "Base.SpearCrafted",
+                                "Base.SpearBreadKnife",
+                                "Base.SpearButterKnife",
+                                "Base.SpearFork",
+                                "Base.SpearHandFork",
+                                "Base.SpearHuntingKnife",
+                                "Base.SpearIcePick",
+                                "Base.SpearKnife",
+                                "Base.SpearLetterOpener",
+                                "Base.SpearMachete",
+                                "Base.SpearScalpel",
+                                "Base.SpearScissors",
+                                "Base.SpearScrewdriver",
+                                "Base.SpearSpoon",
+                                "Base.WoodenLance",
+                                "Base.Katana",
+                                "Base.Machete",
+                                "Base.ChairLeg",
+                                "Base.ClubHammer",
+                                "Base.Hammer",
+                                "Base.LeadPipe",
+                                "Base.MetalBar",
+                                "Base.MetalPipe",
+                                "Base.PickAxeHandle",
+                                "Base.PipeWrench",
+                                "Base.PickAxeHandleSpiked",
+                                "Base.TableLeg",
+                                "Base.Wrench",
+                                "Base.BaseballBat",
+                                "Base.CanoePadel",
+                                "Base.CanoePadelX2",
+                                "Base.Crowbar",
+                                "Base.Golfclub",
+                                "Base.HockeyStick",
+                                "Base.IceHockeyStick",
+                                "Base.Shovel",
+                                "Base.Shovel2",
+                                "Base.Sledgehammer",
+                                "Base.Sledgehammer2",
+                                "Base.BaseballBatNails",
+                                "Base.PlankNail",
+                                "Base.Axe",
+                                "Base.HandAxe",
+                                "Base.PickAxe",
+                                "Base.WoodAxe",
+                                "Base.IcePick",
+                                "Base.HuntingKnife"
+                            }
+                    end
+
+
+                    text = text2Tab[ZombRand(1, (#text2Tab))]
+
+                    bandit.weapons.melee = text
+
+
+
+
                 end
-
-
-                text = text2Tab[ZombRand(1, (#text2Tab))]
-
-                bandit.weapons.melee = text
 
 
 
@@ -1715,47 +2031,326 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
 
 
+            maleOutfits = {"BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Cook_Generic", "BWOFormal", "Young", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Farmer", "Biker", "Punk", "Rocker", "SportsFan", "Varsity", "StreetSports", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Biker", "Punk", "Rocker", "SportsFan", "Varsity", "StreetSports", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal"}
 
-        end
+            femaleOutfits = {"Generic02", "Generic01", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "SportsFan", "Varsity", "StreetSports", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Young",  "Pharmacist", "Farmer", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal" }
+
+            if getGameTime():getDay() >= 15 and ZombRand(10, 20) < getGameTime():getDay() and ZombRand(0, 100) > 10 then
+
+                if getGameTime():getDay() < 17 then
+
+                    maleOutfits = {"Student", "Farmer", "Chef", "Redneck", "Cook_Generic", "Fireman", "Fossoil", "Gas2Go", "Pharmacist", "John", "Priest", "Dean", "Thug", "Party", "Sanitation", "Sanitation", "Postal", "Postal", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03", "PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "Chef", "Redneck", "Hunter", "Camper", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Hunter", "Camper", "Fireman", "Fossoil", "GigaMart_Employee", "Pharmacist", "Waiter_Spiffo", "Spiffo", "Security", "Waiter_Spiffo", "Spiffo"}
+
+                    femaleOutfits = {"Fireman", "Joan", "DressNormal", "DressShort", "Classy", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03", "Sanitation", "Sanitation", "Postal", "Postal", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03", "Pharmacist", "Nurse", "Doctor", "Police", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Biker", "Punk", "Rocker", "Fireman", "Fossoil"}
+
+                else
+                    maleOutfits = {"Fireman", "Fossoil", "Gas2Go", "Pharmacist", "John", "Priest", "Dean", "Thug", "Party","Redneck", "Hunter", "Camper", "MallSecurity", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03", "PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "Chef", "Redneck", "Hunter", "Camper", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "SportsFan", "Varsity", "StreetSports", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Hunter", "Camper", "Fireman", "Fossoil", "Bandit"}
+
+                    femaleOutfits = {"Bandit", "GigaMart_Employee", "Bandit", "Bandit", "Bandit", "Gas2Go", "Bandit", "Joan", "DressNormal", "DressShort", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03", "BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03",  "Nurse", "Doctor", "Bandit", "Police", "OfficeWorkerSkirt", "Cook_Generic", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "SportsFan", "Varsity", "StreetSports", "Bandit", "Farmer", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Biker", "Punk", "Rocker" }
+
+                end
+
+            end
+
+            event.program.name = "Walker"
+            event.program.stage = "Main"
 
 
 
 
-        local maleOutfits = { "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo" }
-
-        local femaleOutfits = { "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer" }
 
 
-        if getGameTime():getDay() >= 16 then
-                
+            if ZombRand(1, 1000) > 500 then
+                bandit.femaleChance = 100
+                bandit.outfit = BanditUtils.Choice(femaleOutfits)
+            else
+                bandit.femaleChance = 0
+                bandit.outfit = BanditUtils.Choice(maleOutfits)
+            end
 
-            maleOutfits = {"PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "Bandit", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "Security"}
-            
-            femaleOutfits = {"Pharmacist", "Nurse", "Doctor", "Bandit", "Police", "Generic01",  "Generic02", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Bandit", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "Farmer", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal" }
-            
-        end
+            if rainIntensity > 0.02 then
+                bandit.outfit = BanditUtils.Choice({"BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03"})
+            else
+
+                if ZombRand(1, 100) > 50 then
+                    bandit.outfit = BanditUtils.Choice({"Generic05", "Generic04", "Generic03", "Generic02", "Generic01", "BWOCow", "BWOYoung", "BWOLeather"})
+                end
+
+            end
+
+            local closestZombie = BanditUtils.GetClosestZombieLocation(player)
+            local closestBandit = BanditUtils.GetClosestEnemyBanditLocation(player)
+
+            if getGameTime():getDay() >= 13 then
+
+                if getGameTime():getDay() == 13 then
+
+                    if closestZombie.dist < 12 or closestBandit.dist < 12 then
+                        
+                        if ZombRand(1, 100) > 80 then
+                            
+                            event.program.name = "Walker"
+                            event.program.stage = "Main"
+
+                            if ZombRand(1, 100) > 95 then
+                                if ZombRand(1, 100) > 75 then
+                                    event.program.name = "Babe"
+                                    event.program.stage = "Follow"
+                                else
+                                    if config.pistolMagCount > 0 then
+                                        event.program.name = "Police"
+                                        event.program.stage = "Main"
+                                    else
+                                        event.program.name = "Active"
+                                        event.program.stage = "Escape"
+                                    end
+                                end
+                            end
+
+                        else
+                            event.program.name = "Survivor"
+                            event.program.stage = "Main"
+                        end
+
+                    else
+
+                        if ZombRand(1, 100) > 10 then
+                            
+                            event.program.name = "Walker"
+                            event.program.stage = "Main"
+
+                        else
+                            event.program.name = "Survivor"
+                            event.program.stage = "Main"
+
+                            if closestZombie.dist > 40 and closestBandit.dist > 40 then
+
+                                if config.pistolMagCount > 0 then
+                                    event.program.name = "Police"
+                                    event.program.stage = "Main"
+                                else
+                                    event.program.name = "Walker"
+                                    event.program.stage = "Main"
+
+                                end
+
+                            end
+
+                        end
+
+                    end
 
 
-        if ZombRand(1, 100) > 15 then
-            bandit.outfit = BanditUtils.Choice({"StreetSports", "StreetSports", "StreetSports"})
+                else
+                    
+                    if getGameTime():getDay() <= 14 then
+
+                        if closestZombie.dist < 12 or closestBandit.dist < 12 then
+                            
+                            if ZombRand(1, 100) > 80 then
+                                
+                                event.program.name = "Walker"
+                                event.program.stage = "Main"
+
+                                if ZombRand(1, 100) > 75 then
+                                    if ZombRand(1, 100) > 85 then
+                                        event.program.name = "Babe"
+                                        event.program.stage = "Follow"
+                                    else
+
+                                        if config.pistolMagCount > 0 then
+                                            event.program.name = "Police"
+                                            event.program.stage = "Main"
+                                        else
+                                            event.program.name = "Active"
+                                            event.program.stage = "Escape"
+                                        end
+
+                                    end
+                                end
+                                
+                            else
+                                event.program.name = "Survivor"
+                                event.program.stage = "Main"
+                            end
+
+                        else
+
+                            if ZombRand(1, 100) > 25 then
+                                
+                                event.program.name = "Walker"
+                                event.program.stage = "Main"
+
+                            else
+                                event.program.name = "Survivor"
+                                event.program.stage = "Main"
+
+                                if closestZombie.dist > 40 and closestBandit.dist > 40 then
+                                    event.program.name = "Police"
+                                    event.program.stage = "Main"
+                                end
+
+                            end
+
+                        end
 
 
-            bandit.program.name = "Runner"
-            bandit.program.stage = "Main"
+                    else
+
+                        -- at this point (the end of the first week) NPCs will NO LONGER continue to be turned into zombies due to "Air-borne infection": the ONLY way for them to gain infection and turn into a zombie is by getting bit/scratched by a zombie themselves, the old-fashioned way.
+
+                        if closestZombie.dist < 12 or closestBandit.dist < 12 then
+                            
+                            if ZombRand(1, 100) > 90 then
+                                
+                                if ZombRand(1, 100) > 50 then
+                                    event.program.name = "Babe"
+                                    event.program.stage = "Follow"
+                                else
+                                    if config.pistolMagCount > 0 then
+                                        event.program.name = "Police"
+                                        event.program.stage = "Main"
+                                    else
+                                        event.program.name = "Babe"
+                                        event.program.stage = "Follow"
+                                    end
+                                end
+                            else
+                                event.program.name = "Survivor"
+                                event.program.stage = "Main"
+                            end
+
+                        else
+
+                            if ZombRand(1, 100) > 75 then
+                                
+                                if getGameTime():getDay() > 15 then
+                                    event.program.name = "Police"
+                                    event.program.stage = "Main"
+                                else
+                                    if ZombRand(1, 100) > 50 then
+                                        event.program.name = "Police"
+                                        event.program.stage = "Main"
+                                    else
+                                        event.program.name = "Walker"
+                                        event.program.stage = "Main"
+                                    end
+                                end
+
+                            else
+
+                                event.program.name = "Survivor"
+                                event.program.stage = "Main"
+
+                                if closestZombie.dist > 50 and closestBandit.dist > 50 then
+                                    event.program.name = "Police"
+                                    event.program.stage = "Main"
+                                end
+
+                            end
+
+                        end
+
+                    end
+
+                end
+
+            end
+
+
         else
 
+            bandit.femaleChance = 50
+
+            if getGameTime():getDay() < 14 then
+
+                local rnd = ZombRand(100)
+
+                if rnd < 4 and tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" then
+                    bandit = BanditCreator.MakeFromWave(config)
+                    bandit.weapons.melee = "Base.BareHands"
+                    bandit.outfit = BanditUtils.Choice({"StreetSports"})
+                    event.program.name = "Runner"
+                    event.program.stage = "Prepare"
+                elseif rnd < 8 then 
+                    bandit = BanditCreator.MakeFromWave(config)
+                    -- bandit.weapons.melee = "Base.BareHands"
+                    bandit.outfit = BanditUtils.Choice({"Postal"})
+                    event.program.name = "Postal"
+                    -- event.program.stage = "Prepare"
+                elseif rnd < 13 then 
+                    bandit = BanditCreator.MakeFromWave(config)
+                    -- bandit.weapons.melee = "Base.BareHands"
+                    bandit.outfit = BanditUtils.Choice({"Farmer"})
+                    event.program.name = "Gardener"
+                    -- event.program.stage = "Prepare"
+                elseif rnd < 16 then 
+                    bandit = BanditCreator.MakeFromWave(config)
+                    -- bandit.weapons.melee = "Base.BareHands"
+                    bandit.outfit = BanditUtils.Choice({"Sanitation"})
+                    bandit.weapons.melee = "Base.Broom"
+                    event.program.name = "Janitor"
+                    event.program.stage = "Prepare"
+                elseif rnd < 17 then 
+                    -- config.clanId = 0
+                    bandit = BanditCreator.MakeFromWave(config)
+                    -- bandit.weapons.melee = "Base.BareHands"
+                    bandit.outfit = BanditUtils.Choice({"Bandit"})
+                    bandit.weapons.melee = "Base.Crowbar"
+                    event.program.name = "Vandal"
+                    event.program.stage = "Prepare"
+                else
+                    bandit = BanditCreator.MakeFromWave(config)
+                    -- bandit.weapons.melee = "Base.BareHands"
+
+                    if rainIntensity > 0.02 then
+                        bandit.outfit = BanditUtils.Choice({"BWORainGeneric01", "BWORainGeneric02", "BWORainGeneric03"})
+                    else
+                        bandit.outfit = BanditUtils.Choice({"Generic05", "Generic04", "Generic03", "Generic02", "Generic01", "BWOCow", "BWOYoung", "BWOLeather"})
+                    end
+
+                    event.program.name = "Walker"
+                    -- event.program.stage = "Prepare"
+
+                end
+
+
+                if getGameTime():getDay() >= 13 and ZombRand(1, 100) > 50 then
+
+                    if ZombRand(1, 100) > 70 then
+                        event.program.name = "Walker"
+                        event.program.stage = "Main"
+                    else
+                        event.program.name = "Survivor"
+                        event.program.stage = "Main"
+                    end
+
+                end
+
+            else
+                bandit = BanditCreator.MakeFromWave(config)
+            end
+
+
         end
 
 
-        bandit.femaleChance = 50
+
+
+
+        
 
         table.insert(event.bandits, bandit)
         sendClientCommand(player, 'Commands', 'SpawnGroup', event)
 
+        return 1
 
-        player:Say("Debug: spawned in a WALKER OR RUNNER!")
+
+        -- player:Say("Debug: spawned in a " .. tostring(event.program.name) .. "!")
 
     end
+
+    return nil
 
 
 
@@ -1795,7 +2390,7 @@ local function fixMusicManClusterFuck()
 
     if not result.id then
     else
-        -- -- pl:Say("found")
+        -- -- -- pl:Say("found")
         npc_id = result.id
         babe1 = BanditZombie.GetInstanceById(npc_id)
         bandit = BanditZombie.GetInstanceById(npc_id)
@@ -1817,7 +2412,7 @@ local function fixMusicManClusterFuck()
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -1834,7 +2429,7 @@ local function fixMusicManClusterFuck()
 
     if not result.id then
     else
-        -- -- pl:Say("found")
+        -- -- -- pl:Say("found")
         npc_id = result.id
         babe1 = BanditZombie.GetInstanceById(npc_id)
         bandit = BanditZombie.GetInstanceById(npc_id)
@@ -1856,7 +2451,7 @@ local function fixMusicManClusterFuck()
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -1909,11 +2504,11 @@ local function fixMusicManClusterFuck()
                     task = Bandit.GetTask(bandit)
 
 
-                    -- -- print(tostring(task))
+                    -- -- -- print(tostring(task))
 
-                    -- -- print(" -------------------------- ")
+                    -- -- -- print(" -------------------------- ")
 
-                    -- -- print("brain.tasks[1].anim is " .. tostring(brain.tasks[1].anim))
+                    -- -- -- print("brain.tasks[1].anim is " .. tostring(brain.tasks[1].anim))
 
                     -- tostring(bandit.tasks[1].anim)
 
@@ -1921,7 +2516,7 @@ local function fixMusicManClusterFuck()
 
                     if task ~= nil then
                         for k, v in pairs(task) do
-                            -- print(tostring(k) .. ": " .. tostring(v))
+                            -- -- print(tostring(k) .. ": " .. tostring(v))
                         end
                     end
 
@@ -1955,7 +2550,7 @@ local function fixMusicManClusterFuck()
                             args = {x=bx+i, y=by+j, z=bz, otype="entertainer"}
                             sendClientCommand(player, 'Commands', 'ObjectRemove', args)
 
-                            -- -- pl:Say("remove NODDING!!!")
+                            -- -- -- pl:Say("remove NODDING!!!")
 
                             -----------                
                             ---
@@ -2021,10 +2616,13 @@ local function pauseThenGlobalSave12()
     sc:SetCurrentGameSpeed(0) -- pause
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
+    local mainR69 = ModData.getOrCreate("mainR69")
 
     -- local vipsHere = ModData.getOrCreate("vipsHere")
 
     ModData.transmit("hutsCsv")
+
+    ModData.transmit("mainR69")
 
 
 end
@@ -2194,7 +2792,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if activeSpawningHutKeyId == nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -2217,7 +2815,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if activeSpawningHutKeyId == nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -2237,7 +2835,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     -- NO DOUBLE-DIPPING OR SPAWNING WHILE DE-SPAWNING:
 
     for k, v in pairs(hutsCsv) do
-        -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+        -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
 
         keyId = tonumber(k)
 
@@ -2286,7 +2884,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if tostring(hutsCsv[activeSpawningHutKeyId].isAlarmed) == "false" then
 
         for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
 
             if math.abs((v.totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) > 3 then
 
@@ -2432,6 +3030,8 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     end
 
 
+
+
     if tick_in2 % (180 * tickMultiplierNeeded) == 0 then
         -- zedClumpSizeMultiplier
         -- numberOfZombies
@@ -2471,24 +3071,15 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     end
 
 
+    local maleOutfits = { "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo" }
 
-
-
-
-
-    
-
-
-
-    local maleOutfits = { "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo" }
-
-    local femaleOutfits = { "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer" }
+    local femaleOutfits = { "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "GigaMart_Employee", "Pharmacist", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "Farmer" }
 
 
     if getGameTime():getDay() >= 16 then
                
 
-        maleOutfits = {"PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "Bandit", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "Security"}
+        maleOutfits = {"PoliceState", "HazardSuit", "HazardSuit", "HazardSuit", "PoliceRiot", "AmbulanceDriver", "Pharmacist", "Nurse", "Doctor", "Bandit", "ZSPoliceSpecialOps", "PoliceState", "PoliceRiot", "BWOYoung", "Police", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "MallSecurity", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Chef", "Redneck", "Hunter", "Camper", "Bandit", "Cook_Generic", "BWOFormal", "Young", "John", "Priest", "Dean", "Thug", "Party", "OfficeWorker", "Classy", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Farmer", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Waiter_Spiffo", "Spiffo", "Young", "BWOYoung", "BWOCow", "BWOLeather", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal", "Security"}
         
         femaleOutfits = {"Pharmacist", "Nurse", "Doctor", "Bandit", "Police", "Generic01",  "Generic02", "Generic03", "Generic04", "Generic05", "BWOYoung", "BWOCow", "BWOLeather", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Bandit", "Gas2Go", "Bandit", "Pharmacist", "SportsFan", "Varsity", "StreetSports", "Bandit", "Waiter_Classy", "Waiter_Spiffo", "Waiter_Diner", "Waiter_Restaurant", "Spiffo", "OfficeWorkerSkirt", "Cook_Generic", "Party", "DressShort", "BWORainGeneric02", "BWORainGeneric01", "Generic01", "Generic02", "Generic03", "Generic04", "Generic05", "Student", "Teacher", "BWOYoung", "BWOCow", "BWOLeather", "Joan", "DressNormal", "DressShort", "Classy", "Young", "Biker", "Punk", "Rocker", "Fireman", "Fossoil", "Bandit", "GigaMart_Employee", "Pharmacist", "Farmer", "ShellSuit_Black", "ShellSuit_Black", "ShellSuit_Blue", "ShellSuit_Green", "ShellSuit_Pink", "ShellSuit_Teal" }
         
@@ -2523,8 +3114,8 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     local pl = getPlayer(0)
 
     if count > 1 then
-        -- print("more than one player")
-        -- -- pl:Say("more than one player")
+        -- -- print("more than one player")
+        -- -- -- pl:Say("more than one player")
 
         -- we wanna spawn them a little further away probably if there's more than one player present (for split-screen co-op so we don't spawn right on top of another player)
 
@@ -2563,8 +3154,8 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
         hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft - numberOfZombies
 
     else
-        -- print("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
-        -- -- pl:Say("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+        -- -- print("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+        -- -- -- pl:Say("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
     end
 
 
@@ -2575,27 +3166,11 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
 
 end
 
-
-
-
-
-local function allButSpawn()
+local function doEvery10Ticks()
 
     -- maxNpcs_R69
 
-
-    -- if quickCountNearbyZeds_R69 > maxZeds_sandbox_knob250 or (quickCountNearbyZeds_R69 + quickCountNearbyNpcs_R69) > 300 then
-
     local vipsHere = ModData.getOrCreate("vipsHere")
-
-
-    -- if 
-
-
-
-    -- if approxHutsCount > 0 then
-    --     totNpcsInRegion = totNpcsInRegion + ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
-    -- end
 
 
     -- ADJUST: population nominals
@@ -2668,44 +3243,17 @@ local function allButSpawn()
     end
 
 
+    local mainR69 = ModData.getOrCreate("mainR69")
 
-    if BWOScheduler.WorldAge <= 132 then
-        maxNpcs_R69 = 15
-    else
-        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
-
-        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
-        
-    end
-
-    local approxHutsCount = 0; 
-    
-    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 2)
-
-    if approxHutsCount > 0 then
-        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
-    end
 
         
 
     maxZeds_R69 = maxZeds_sandbox_knob250
     
-    
-    -- end
-
-
-
-
-
     local zedsHere = ModData.getOrCreate("zedsHere")
-
-    -- ...and then when we enter a new building for the first time we do this:
 
     local player = getPlayer(0)
     local pl = getPlayer(0)
-
     
     local px = player:getX()
     local py = player:getY()
@@ -2720,223 +3268,24 @@ local function allButSpawn()
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
 
-    -- for k, v in pairs(hutsCsv) do
-    --     -- hutsCsv[k] = nil
-    --     -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-    --     -- -- print("Key:", k, "Value of v.px: ", v.px)
-    --     -- -- print("Key:", k, "Value of v.py: ", v.py)
-    -- end
-
     local bx, by
     local tx, ty
 
     local dist
 
+    local npcsAllowed_OG = 0
+    local npcsAllowedLeft = 0
 
-    local addNum = 5
+    local mainR69 = ModData.getOrCreate("mainR69")
 
-    if getGameTime():getDay() >= 15 then
-        addNum = 3
-
-        if getGameTime():getDay() >= 18 then
-            addNum = 1
-        end
-    end
-
-    -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
-
-    if maxNpcs_R69 <= 90 then
-    
-        for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
-
-            keyId = tonumber(k)
-
-            bx = v.x; by = v.y
-
-            tx = v.x2; ty = v.y2
-
-            local x1, x2, y1, y2
-
-            if v.x < v.x2 then
-                x1 = v.x
-                x2 = v.x2
-            else
-                x1 = v.x2
-                x2 = v.x
-            end
-            
-            if v.y < v.y2 then
-                y1 = v.y
-                y2 = v.y2
-            else
-                y1 = v.y2
-                y2 = v.y
-            end
-
-            local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-            -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-            -- if avgVar1 >= 30 then
-            --     addNum = addNum * 4
-            --     -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and addNum is " .. tostring(addNum))
-            -- end
-
-
-
-            -- local addNum = 5
-
-            -- if getGameTime():getDay() >= 15 then
-            --     addNum = 3
-
-            --     if getGameTime():getDay() >= 18 then
-            --         addNum = 1
-            --     end
-            -- end
-
-            -- local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-            -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-            -- if avgVar1 >= 30 then
-            --     addNum = addNum * 4
-            --     -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and addNum is " .. tostring(addNum))
-
-            -- else
-            --     if avgVar1 > 23 then
-            --         addNum = addNum * 2
-            --     else
-
-            --         if avgVar1 > 16 then
-            --             addNum = addNum
-            --         else
-            --             addNum = math.ceil(addNum * (1/2))
-            --         end
-            --     end
-            -- end
-
-            if px > x1 and px < x2 and py > y1 and py < y2 then
-                -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-            else
-                if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                    -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                    maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-                else
-
-                end
-            end
-
-        end
-
+    if not mainR69.basePop then
+        mainR69.baseMult = 3.0; mainR69.basePop = 25
     end
 
 
-
-    if maxNpcs_R69 > math.ceil(100 * ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)) then
-        maxNpcs_R69 = math.ceil(100 * ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2))
-    end
-
-    if maxNpcs_R69 > 100 then
-        maxNpcs_R69 = 100
-    end
-    
-
-
-    if building then
-
-        buildingDef = building:getDef()
-        keyId = buildingDef:getKeyId()
-
-
-        local x1 = buildingDef:getX()
-        local y1 = buildingDef:getY()
-        local x2 = buildingDef:getX2()
-        local y2 = buildingDef:getY2()
-
-        local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
-
-        -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
-        -- 
-
-        local livingNumber_OG = 0
-
-
-
-
-        local npcsLeft = 8
-
-        -- if getGameTime():getDay() >= 15 then
-        --     -- npcsLeft = 3
-        --     npcsLeft = 5
-
-        --     if getGameTime():getDay() >= 18 then
-        --         npcsLeft = 5
-        --         -- npcsLeft = 1
-        --     end
-        -- end
-
-        local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-        -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-
-
-        if avgVar1 >= 40 then
-            npcsLeft = npcsLeft * 5
-            -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
-
-        else
-
-            if avgVar1 >= 30 then
-                npcsLeft = npcsLeft * 4
-                -- -- pl:Say("debug: avgVar1 is " .. tostring(avgVar1) .. " and npcsLeft is " .. tostring(npcsLeft))
-
-            else
-                if avgVar1 > 23 then
-                    npcsLeft = npcsLeft * 2
-                else
-
-                    if avgVar1 > 16 then
-                        npcsLeft = npcsLeft
-                    else
-                        npcsLeft = math.ceil(npcsLeft * (1/2))
-                    end
-                end
-            end
-
-        end
-
-
-
-        if not hutsCsv[keyId] then
-            hutsCsv[keyId] = {
-                occupantsMax=occupantsMax, 
-                totZombiesLeft=0, 
-                totMinutesAtFirstSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24)), 
-                x=x1, 
-                y=y1, 
-                x2=x2,
-                y2=y2, 
-                dayLastSeen=getGameTime():getDay(),
-                isAlarmed=buildingDef:isAlarmed(),
-                px=px,
-                py=py,
-                pz=pz,
-                npcs={},
-                npcsLeft=npcsLeft,
-                livingNumber_OG=npcsLeft
-            }
-
-            savedKeyId = keyId
-
-
-        end
-
-    end
-
-
+    -- END OF PART ONE
+    -- 👈👈👈👈👈👈👈👈👈👈👈👈👈👇👇☝👉👈👇👇👇👈👇👇☝☝☝👆🤞
+    -------------------------------------------------------------------------
 
     local cell = getCell()
     local zombieList = cell:getZombieList()
@@ -2955,10 +3304,6 @@ local function allButSpawn()
     local zombieObj
 
     local task
-
-    quickCountNearbyNpcs_R69 = 0
-
-    quickCountNearbyZeds_R69 = 0
 
     local cell = getCell()
     local zombieList = cell:getZombieList()
@@ -3008,7 +3353,7 @@ local function allButSpawn()
             local brain = BanditBrain.Get(zombie)
             local prg = brain.program.name
 
-            -- -- print("bandit??? -> program name is: " .. tostring(prg))
+            -- -- -- print("bandit??? -> program name is: " .. tostring(prg))
 
             quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
 
@@ -3022,47 +3367,450 @@ local function allButSpawn()
 
 
         else
-            -- print("no???")
+            -- -- print("no???")
             quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 + 1
         end
     end
-
 
 
     -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
     -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
 
 
-
-
-    -- -- pl:Say("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
-    -- -- pl:Say("maxZeds_R69 is " .. tostring(maxZeds_R69))
-
+    -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+    -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
 
 
 
 
 
+    -- END OF PART TWO
+    -- 👈👈👈👈👈👈👈👈👈👈👈👈👈👇👇☝👉👈👇👇👇👈👇👇☝☝☝👆🤞
+    -------------------------------------------------------------------------
 
+end
+
+local function doEveryTick()
+
+    -- maxNpcs_R69
+
+    local vipsHere = ModData.getOrCreate("vipsHere")
+
+
+    -- ADJUST: population nominals
+    BWOPopControl.ZombieMax = 0
+    BWOPopControl.StreetsNominal = 41
+    BWOPopControl.InhabitantsNominal = 100
+    BWOPopControl.SurvivorsNominal = 0
+
+    if BWOScheduler.WorldAge == 83 then -- occasional zombies
+        BWOPopControl.ZombieMax = 1
+    elseif BWOScheduler.WorldAge == 86 then -- occasional zombies
+        BWOPopControl.ZombieMax = 1
+    elseif BWOScheduler.WorldAge >= 91 and BWOScheduler.WorldAge < 94 then -- occasional zombies
+        BWOPopControl.ZombieMax = 2
+    elseif BWOScheduler.WorldAge >= 105 and BWOScheduler.WorldAge < 108 then -- occasional zombies
+        BWOPopControl.ZombieMax = 3
+    elseif BWOScheduler.WorldAge >= 114 and BWOScheduler.WorldAge < 117 then -- occasional zombies
+        BWOPopControl.ZombieMax = 3
+    elseif BWOScheduler.WorldAge >= 120 and BWOScheduler.WorldAge < 128 then -- occasional zombies
+        BWOPopControl.ZombieMax = 8
+    elseif BWOScheduler.WorldAge == 128  then -- outbreak
+        BWOPopControl.ZombieMax = 70
+        BWOPopControl.StreetsNominal = 45
+        BWOPopControl.InhabitantsNominal = 50
+    elseif BWOScheduler.WorldAge == 129 then 
+        BWOPopControl.ZombieMax = 70
+        BWOPopControl.StreetsNominal = 50
+        BWOPopControl.InhabitantsNominal = 40
+        BWOPopControl.SurvivorsNominal = 2
+    elseif BWOScheduler.WorldAge == 130 then
+        BWOPopControl.ZombieMax = 70
+        BWOPopControl.StreetsNominal = 55
+        BWOPopControl.InhabitantsNominal = 30
+        BWOPopControl.SurvivorsNominal = 3
+    elseif BWOScheduler.WorldAge == 131 then
+        BWOPopControl.ZombieMax = 70
+        BWOPopControl.StreetsNominal = 60
+        BWOPopControl.InhabitantsNominal = 15
+        BWOPopControl.SurvivorsNominal = 5
+    elseif BWOScheduler.WorldAge == 132 then
+        BWOPopControl.ZombieMax = 70
+        BWOPopControl.StreetsNominal = 55
+        BWOPopControl.InhabitantsNominal = 15
+        BWOPopControl.SurvivorsNominal = 8
+    elseif BWOScheduler.WorldAge >= 133 and BWOScheduler.WorldAge < 170 then
+        BWOPopControl.ZombieMax = 1000
+
+
+
+        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
+        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
+
+        if BWOPopControl.StreetsNominal < 0 then
+
+            BWOPopControl.InhabitantsNominal = 0
+            BWOPopControl.StreetsNominal = 0
+            BWOPopControl.SurvivorsNominal = 1
+
+        end
+
+
+
+    elseif BWOScheduler.WorldAge >= 169 then
+        BWOPopControl.ZombieMax = 1000
+        BWOPopControl.SurvivorsNominal = 0
+        BWOPopControl.InhabitantsNominal = 0
+        BWOPopControl.StreetsNominal = 0
+
+    end
+
+
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+    maxZeds_R69 = maxZeds_sandbox_knob250
+    
+    local zedsHere = ModData.getOrCreate("zedsHere")
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+    
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local building = player:getBuilding()
+
+    local buildingDef
+    local keyId
+
+    local square
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+
+    -- for k, v in pairs(hutsCsv) do
+    --     -- hutsCsv[k] = nil
+    --     -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- -- print("Key:", k, "Value of v.px: ", v.px)
+    --     -- -- -- print("Key:", k, "Value of v.py: ", v.py)
+    -- end
+
+    local bx, by
+    local tx, ty
+
+    local dist
+
+
+    local addNum = 5
+
+    if getGameTime():getDay() >= 15 then
+        addNum = 3
+
+        if getGameTime():getDay() >= 18 then
+            addNum = 1
+        end
+    end
+
+    -- -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+
+
+
+    local npcsAllowed_OG = 0
+    local npcsAllowedLeft = 0
+
+    -- mainR69
+
+
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+
+
+    if building then
+
+        buildingDef = building:getDef()
+        keyId = buildingDef:getKeyId()
+
+        if not hutsCsv[keyId] then
+
+            local x1 = buildingDef:getX()
+            local y1 = buildingDef:getY()
+            local x2 = buildingDef:getX2()
+            local y2 = buildingDef:getY2()
+
+            local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
+
+            -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
+            -- 
+
+            local npcsLeft_OG = 0
+
+            local npcsLeft
+
+            local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
+
+            local mainR69 = ModData.getOrCreate("mainR69")
+
+            local multLeft = 0.0
+            local multLeft_OG = 0.0
+
+            if not mainR69.baseMult then
+                mainR69.baseMult = 3.0
+            end
+
+            if not mainR69.popMultLeft then
+                mainR69.popMultLeft = mainR69.baseMult
+            end
+
+            npcsLeft = 4
+            local npcsLeft_OG = 4
+
+            if avgVar1 >= 40 then
+                multLeft = mainR69.popMultLeft - 0
+                if multLeft < 0 then
+                    multLeft = 0
+                end
+                npcsLeft = math.ceil(npcsLeft * (multLeft))
+                -- npcsLeft = npcsLeft * 3
+
+                multLeft_OG = mainR69.baseMult - 0
+                if multLeft_OG < 0 then
+                    multLeft_OG = 0
+                end
+                npcsLeft_OG = math.ceil(npcsLeft_OG * (multLeft_OG))
+
+
+            else
+
+                if avgVar1 >= 30 then
+                    multLeft = mainR69.popMultLeft - 1.0
+                    if multLeft < 0 then
+                        multLeft = 0
+                    end
+                    npcsLeft = math.ceil(npcsLeft * (multLeft))
+                    -- npcsLeft = npcsLeft * 2
+
+                    multLeft_OG = mainR69.baseMult - 1.0
+                    if multLeft_OG < 0 then
+                        multLeft_OG = 0
+                    end
+                    npcsLeft_OG = math.ceil(npcsLeft_OG * (multLeft_OG))
+
+
+                else
+                    if avgVar1 > 23 then
+                        multLeft = mainR69.popMultLeft - 1.5
+                        if multLeft < 0 then
+                            multLeft = 0
+                        end
+                        npcsLeft = math.ceil(npcsLeft * (multLeft))
+                        -- npcsLeft = math.ceil(npcsLeft * 1.5)
+                        
+                        multLeft_OG = mainR69.baseMult - 1.5
+                        if multLeft_OG < 0 then
+                            multLeft_OG = 0
+                        end
+                        npcsLeft_OG = math.ceil(npcsLeft_OG * (multLeft_OG))
+
+
+                    else
+
+                        if avgVar1 > 16 then
+                            multLeft = mainR69.popMultLeft - 2.0
+                            if multLeft < 0 then
+                                multLeft = 0
+                            end
+                            npcsLeft = math.ceil(npcsLeft * (multLeft))
+                            -- npcsLeft = (npcsLeft * (1.0))
+
+                            multLeft_OG = mainR69.baseMult - 2.0
+                            if multLeft_OG < 0 then
+                                multLeft_OG = 0
+                            end
+                            npcsLeft_OG = math.ceil(npcsLeft_OG * (multLeft_OG))
+
+
+                        else
+                            multLeft = mainR69.popMultLeft - 2.5
+                            if multLeft < 0 then
+                                multLeft = 0
+                            end
+                            npcsLeft = math.ceil(npcsLeft * (multLeft))
+                            -- npcsLeft = math.ceil(npcsLeft * (0.5))
+
+                            multLeft_OG = mainR69.baseMult - 2.5
+                            if multLeft_OG < 0 then
+                                multLeft_OG = 0
+                            end
+                            -- 
+                            npcsLeft_OG = math.ceil(npcsLeft_OG * (multLeft_OG))
+
+                        end
+                    end
+                end
+
+            end
+
+
+
+            if not hutsCsv[keyId] then
+                hutsCsv[keyId] = {
+                    occupantsMax=occupantsMax, 
+                    totZombiesLeft=0, 
+                    totMinutesAtFirstSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24)), 
+                    x=x1, 
+                    y=y1, 
+                    x2=x2,
+                    y2=y2, 
+                    dayLastSeen=getGameTime():getDay(),
+                    isAlarmed=buildingDef:isAlarmed(),
+                    px=px,
+                    py=py,
+                    pz=pz,
+                    npcs={},
+                    npcsLeft=npcsLeft,
+                    npcsLeft_OG=npcsLeft_OG
+                }
+
+                savedKeyId = keyId
+
+
+            end
+        end
+
+
+    end
+
+    -- END OF PART ONE
+    -- 👈👈👈👈👈👈👈👈👈👈👈👈👈👇👇☝👉👈👇👇👇👈👇👇☝☝☝👆🤞
+    -------------------------------------------------------------------------
+
+
+
+
+
+end
+
+
+-- allButSpawn
+-- doEvery60Ticks
+
+local function doEvery60Ticks()
+
+    local vipsHere = ModData.getOrCreate("vipsHere")
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+    local approxHutsCount = 0; 
+
+    maxZeds_R69 = maxZeds_sandbox_knob250
+    
+    local zedsHere = ModData.getOrCreate("zedsHere")
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+    
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local building = player:getBuilding()
+
+    local buildingDef
+    local keyId
+
+    local square
+
+    local hutsCsv = ModData.getOrCreate("hutsCsv")
+
+    local bx, by
+    local tx, ty
+
+    local dist
+
+    local addNum = 5
+
+    local npcsAllowed_OG = 0
+    local npcsAllowedLeft = 0
+
+
+    -- END OF PART ONE
+    -- 👈👈👈👈👈👈👈👈👈👈👈👈👈👇👇☝👉👈👇👇👇👈👇👇☝☝☝👆🤞
+    -------------------------------------------------------------------------
+
+    local cell = getCell()
+    local zombieList = cell:getZombieList()
+    local args
+    local zombie
+
+    local bx, by, bz
+    local dist; local npc_id; local bandit; local brain
+
+    local buildingDef
+
+    local keyId
+
+    local square
+
+    local zombieObj
+
+    local task
+
+    local cell = getCell()
+    local zombieList = cell:getZombieList()
+    local args
+    local zombie
+
+    local bx, by, bz
+    local dist; local npc_id; local bandit; local brain
+
+    local buildingDef
+
+    local keyId
+
+    local square
+
+    local zombieObj
+
+    local task
+
+    local cell = getCell()
+    local zombieList = cell:getZombieList()
+
+    local totalb = 0 -- all civs
+    local totalz = 0 -- all zeds
+    
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local square
+
+    -- END OF PART TWO
+    -- 👈👈👈👈👈👈👈👈👈👈👈👈👈👇👇☝👉👈👇👇👇👈👇👇☝☝☝👆🤞
+    -------------------------------------------------------------------------
 
 
     local bx, by, bz
     local vipsHere = ModData.getOrCreate("vipsHere")
 
 
+    local babe1
 
+
+
+
+    local despawnBuffer = 20
 
     for i = 0, zombieList:size() - 1 do
 
 
-        -- print(" ------>>>> print THIS if this is running!!")
+        -- -- print(" ------>>>> print THIS if this is running!!")
         
 
         zombie = zombieList:get(i)
-
-
-
-        
 
         vipsHere = ModData.getOrCreate("vipsHere")
 
@@ -3081,31 +3829,152 @@ local function allButSpawn()
 
                 if zombie:getVariableBoolean("Bandit") then
 
-
                     local brain = BanditBrain.Get(zombie)
                     local prg = brain.program.name
 
                     if pz ~= bz then
-                        
                         dist = dist + ( (math.abs(pz - bz)) * 10)
+                    end
 
+                    if pz ~= bz then
+                        dist = dist + ( (math.abs(pz - bz)) * 10)
                     end
 
                     npc_id = brain.id
                     bandit = BanditZombie.GetInstanceById(npc_id)
+                    babe1 = BanditZombie.GetInstanceById(npc_id)
 
-                    if quickCountNearbyNpcs_R69 > maxNpcs_R69 and brain.program.name ~= "Bandit" then
+                    if prg == "Walker" or prg == "Active" or prg == "Survivor" or prg == "Runner" or prg == "Inhabitant" or prg == "Postal" or prg == "Gardener" or prg == "Vandal" or prg == "Janitor" then
+
+
+
+                        babe1 = BanditZombie.GetInstanceById(npc_id)
+                        bandit = BanditZombie.GetInstanceById(npc_id)
+                        brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
+
+                        bx = BanditZombie.GetInstanceById(npc_id):getX();
+                        by = BanditZombie.GetInstanceById(npc_id):getY();
+                        bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
+
+                        dist = BanditUtils.DistTo (px, py, bx, by)
+
+                        if bz ~= pz then
+                            dist = dist + 7
+                        end
+
+                        if vipsHere[npc_id] ~= nil then
+                            vipsHere[npc_id] = nil
+                        end
+
+                        local babe3 = bandit
+                        
+                        if dist > 35 and quickCountNearbyNpcs_R69 + 10 > maxNpcs_R69 then
+                            
+                            if tostring(player:CanSee(babe3)) == "false" or tostring(getPlayer(getPlayer():getPlayerNum()):isFacingLocation(babe3:getX(), babe3:getY(), 0.3)) == "false" or tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" or dist > 21 then
+
+                                zombieObj = BanditZombie.GetInstanceById(npc_id)
+
+                                zombieObj:removeFromSquare()
+                                zombieObj:removeFromWorld()
+
+                                args = { id = npc_id } -- ✅ don’t leak globals
+                                sendClientCommand(player, "Commands", "BanditRemove", args)
+
+                                quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
+
+                                pl:Say("DE-SPAWNED NPC SINCE WE WERE NEAR OVER-FLOWING function!")
+
+                                break
+
+                            end
+                        
+                        end
+                            
+
+                        
+                    end
+
+
+                    if brain.program.name ~= "Bandit" then
+
+                        if dist > 25 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" and quickCountNearbyNpcs_R69 > maxNpcs_R69 then
+
+                            if brain.program.name == "Inhabitant" or brain.program.name == "Walker" or brain.program.name == "Active" or brain.program.name == "Runner" or brain.program.name == "Survivor" then
+
+                                if BanditUtils.DistTo(px, py, (bx), (by)) > 10 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
+                                    
+                                    local zombieObj = BanditZombie.GetInstanceById(npc_id)
+
+                                    zombieObj:removeFromSquare()
+                                    zombieObj:removeFromWorld()
+
+                                    local args = { id = npc_id } -- ✅ don’t leak globals
+                                    sendClientCommand(player, "Commands", "BanditRemove", args)
+
+                                    pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
+
+
+                                    quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
+
+                                    local vipsHere = ModData.getOrCreate("vipsHere")
+
+                                    if vipsHere[npc_id] ~= nil then
+                                        vipsHere[npc_id] = nil
+                                        -- vipsHere[npc_id] = nil
+                                    end
+
+                                end
+
+                            end
+
+                        else
+
+                            if vipsHere[npc_id] == nil then                                
+
+                                if quickCountNearbyNpcs_R69 < maxNpcs_R69 then
+
+                                    comboTab1 = {fullname=tostring(brain.fullname), deadNow=false, trust=ZombRand(0, 50), keyId=keyId, outfit=tostring(brain.outfit), id=npc_id, day=tonumber(getGameTime():getDay()), hour=tonumber(getGameTime():getHour()), minute=tonumber(getGameTime():getMinutes()), melee=tostring(brain.weapons.melee), primaryGunName=tostring(brain.weapons.primary.name), secondaryGunName=tostring(brain.weapons.secondary.name), bornX=(brain.bornCoords.x), bornY=(brain.bornCoords.y), bornZ=(brain.bornCoords.z), infection=(brain.infection), health=tonumber(brain.health), female=(brain.female), skinTexture=tostring(brain.skinTexture), hairStyle=tostring(brain.hairStyle), hairColorR=(brain.hairColor.r), hairColorG=(brain.hairColor.g), hairColorB=(brain.hairColor.b), beardColorR=(brain.beardColor.r), beardColorG=(brain.beardColor.g), beardColorB=(brain.beardColor.b), lastDistanceSeen=dist, totMinutesAtLastSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))}
+
+                                    vipsHere[npc_id] = comboTab1
+
+                                end
+                            end
+                        end
+
+
+                    end
+
+
+
+
+
+
+
+
+
+
+                    npc_id = brain.id
+
+                    if brain.outfit == "IT" or brain.outfit == "Teacher" or tostring(brain.outfit) == "Generic06" or tostring(brain.outfit) == "Tourist" or tostring(brain.outfit) == "BaseballFan_KY"  or tostring(brain.outfit) == "BaseballFan_Rangers" or tostring(brain.outfit) == "BaseballFan_Z" or tostring(brain.outfit) == "Hobbo" or tostring(brain.outfit) == "Cyclist" then
+                        fixNakedNpcs(npc_id)
+                    end
+
+                    bandit = BanditZombie.GetInstanceById(npc_id)
+
+                    if quickCountNearbyNpcs_R69 > maxNpcs_R69 + despawnBuffer and brain.program.name ~= "Bandit" then
 
                         if dist > 25 and tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
                             
                             if BanditZombie.GetInstanceById(npc_id) ~= nil then
 
-                                -- print("bandit??? -> program name is: " .. tostring(prg))
+                                -- -- print("bandit??? -> program name is: " .. tostring(prg))
 
 
                                 -- brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
                             
-                                if brain.program.name == "Inhabitant" or brain.program.name == "Walker" or brain.program.name == "Active" or brain.program.name == "Runner" or brain.program.name == "Survivor" or brain.program.name == "Gardener" or brain.program.name == "Janitor" or brain.program.name == "Vandal" or brain.program.name == "Postal" or brain.program.name == "Entertainer" or brain.program.name == "Babe" or brain.program.name == "Thief" or brain.program.name == "Medic" or brain.program.name == "Fireman" or brain.program.name == "Police" then
+                                if brain.program.name == "Inhabitant" or brain.program.name == "Walker" or brain.program.name == "Active" or brain.program.name == "Runner" or brain.program.name == "Survivor" or brain.program.name == "Gardener" or brain.program.name == "Janitor" or brain.program.name == "Vandal" or brain.program.name == "Postal" or brain.program.name == "Entertainer" or brain.program.name == "Thief" or brain.program.name == "Medic" or brain.program.name == "Fireman" or brain.program.name == "Police" or brain.program.name == "Babe" then
+
+                                    -- if brain.program.name ~= "Babe" or dist > 50 then
 
                                     if brain.program.name == "Entertainer" then
 
@@ -3178,24 +4047,31 @@ local function allButSpawn()
 
 
                                                 if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" and notBusyNow == true then
-                                                    zombieObj = BanditZombie.GetInstanceById(brain.id)
+                                                    
+                                                    if brain.program.name ~= "Babe" or dist > 45 then
+    
+                                                        zombieObj = BanditZombie.GetInstanceById(brain.id)
 
-                                                    zombieObj:removeFromSquare()
-                                                    zombieObj:removeFromWorld()
+                                                        zombieObj:removeFromSquare()
+                                                        zombieObj:removeFromWorld()
 
-                                                    args = { id = brain.id } -- ✅ don’t leak globals
-                                                    sendClientCommand(player, "Commands", "BanditRemove", args)
+                                                        args = { id = brain.id } -- ✅ don’t leak globals
+                                                        sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                                    quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
+                                                        pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 3!")
 
-                                                    -- vipsHere
+                                                        quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
-                                                    local vipsHere = ModData.getOrCreate("vipsHere")
+                                                        -- vipsHere
 
-                                                    if vipsHere[brain.id] ~= nil then
-                                                        vipsHere[brain.id] = nil
-                                                        -- vipsHere[npc_id] = nil
+                                                        local vipsHere = ModData.getOrCreate("vipsHere")
+
+                                                        if vipsHere[brain.id] ~= nil then
+                                                            vipsHere[brain.id] = nil
+                                                            -- vipsHere[npc_id] = nil
+                                                        end
                                                     end
+                                                    
 
                                                 end
 
@@ -3226,10 +4102,12 @@ local function allButSpawn()
                                             args = { id = brain.id } -- ✅ don’t leak globals
                                             sendClientCommand(player, "Commands", "BanditRemove", args)
 
+                                            pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 4!")
+
                                             quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
 
-                                            local vipsHere = ModData.getOrCreate("vipsHere")
+                                        local vipsHere = ModData.getOrCreate("vipsHere")
 
                                             if vipsHere[brain.id] ~= nil then
                                                 vipsHere[brain.id] = nil
@@ -3250,25 +4128,19 @@ local function allButSpawn()
 
                     end
 
-                    -- quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
 
                 else
-                    -- print("no???")
+                    -- -- print("no???")
                     -- quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 + 1
 
                     if quickCountNearbyZeds_R69 > maxZeds_R69 then
 
                         npc_id = BanditUtils.GetCharacterID(zombie)
 
-
-                        -- -- pl:Say("....BanditUtils.GetCharacterID(zombie) is " .. tostring(BanditUtils.GetCharacterID(zombie)))
+                        -- -- -- pl:Say("....BanditUtils.GetCharacterID(zombie) is " .. tostring(BanditUtils.GetCharacterID(zombie)))
                         -- npc_id = zombie.id
 
-                        
-
                         if zedsHere[npc_id] == nil then
-
-                            -- 
 
                             if square ~= nil then
 
@@ -3308,6 +4180,8 @@ local function allButSpawn()
                                                                 args = { id = zombie.id } -- ✅ don’t leak globals
                                                                 sendClientCommand(player, "Commands", "BanditRemove", args)
 
+                                                                pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 5!")
+
                                                                 hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft + 1
 
                                                                 quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 - 1
@@ -3323,6 +4197,8 @@ local function allButSpawn()
 
                                                         args = { id = zombie.id } -- ✅ don’t leak globals
                                                         sendClientCommand(player, "Commands", "BanditRemove", args)
+
+                                                        pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 6!")
 
                                                         hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft + 1
 
@@ -3400,9 +4276,9 @@ local function allButSpawn()
                                             npc_id = BanditUtils.GetCharacterID(zombie)
 
 
-                                            -- -- pl:Say("...wtf??? zombie.id is " .. tostring(zombie.id))
+                                            -- -- -- pl:Say("...wtf??? zombie.id is " .. tostring(zombie.id))
 
-                                            -- -- pl:Say("...wtf??? npc_id from BanditUtils.GetCharacterID(zombie) is " .. tostring(npc_id))
+                                            -- -- -- pl:Say("...wtf??? npc_id from BanditUtils.GetCharacterID(zombie) is " .. tostring(npc_id))
 
                                             -- maxZeds_R69
 
@@ -3508,8 +4384,10 @@ local function allButSpawn()
                                                             args = { id = npc_id } -- ✅ don’t leak globals
                                                             sendClientCommand(player, "Commands", "BanditRemove", args)
 
+                                                            pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 7")
+
                                                             if keyId == nil then
-                                                                totZedsOverFlow_R69 = totZedsOverFlow_R69 + 1
+                                                            totZedsOverFlow_R69 = totZedsOverFlow_R69 + 1
                                                             else
                                                                 
                                                                 if hutsCsv[keyId] ~= nil then
@@ -3554,7 +4432,7 @@ local function allButSpawn()
 
 end
 
--- allButSpawn()
+-- doEvery60Ticks()
 
 
 
@@ -3602,7 +4480,7 @@ local function preDripper(tick_in)
                 do return end
             else
 
-                -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+                -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
                 keyId = k
                 activeSpawningHutKeyId = k
 
@@ -3614,7 +4492,7 @@ local function preDripper(tick_in)
     if activeSpawningHutKeyId ~= nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+            -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -3659,7 +4537,7 @@ local function preDripper(tick_in)
     if activeSpawningHutKeyId ~= nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+            -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -3907,11 +4785,11 @@ local function preDripper(tick_in)
 
                     numHutsFound = numHutsFound + 1
 
-                    -- pl:Say("Debug:  THIS spot can spawn zombos!")
+                    -- -- pl:Say("Debug:  THIS spot can spawn zombos!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- pl:Say("Debug:  THIS spot can spawn zombos... AND is not immersion breaking visually to pop in there!")
+                        -- -- pl:Say("Debug:  THIS spot can spawn zombos... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -3999,7 +4877,7 @@ local function preDripper(tick_in)
 
                     if 1 + 1 == 2 then
 
-                        -- pl:Say("Debug:  debug: preparing to spawn...")
+                        -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                         local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -4007,11 +4885,11 @@ local function preDripper(tick_in)
 
                             local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                            -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                             
                             if spawnSquare and not spawnSquare:getZombie() then
 
-                                -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                 local chanceOfOutside = 70
 
@@ -4118,8 +4996,167 @@ local function preDripper(tick_in)
 end
 
 
+local function slapDashSpawner2()
+
+    local player = getPlayer(0)
+    local pl = getPlayer(0)
+
+    local px = player:getX()
+    local py = player:getY()
+    local pz = math.floor(player:getZ())
+
+    local spawnRoom
+
+    local tab1 = {}
+
+    local square
+    local building
+
+    local event = {}
+
+    local bx, by, bz
+
+    local walkX, walkY, walkZ
+
+    local tab1 = {}
+
+    local spawnRoomDef
+
+    tab1 = returnRoomCoords(player, 14, 2)
 
 
+    if (#tab1) > 0 then
+
+        for i = 1, (#tab1) do
+            
+            square = getCell():getGridSquare(tab1[i].x, tab1[i].y, tab1[i].z);
+
+            event = {}
+            
+            event.x = tab1[i].x
+            event.y = tab1[i].y
+            event.z = tab1[i].z            
+            
+            if square ~= nil then
+
+                building = square:getBuilding()
+                
+                if building ~= nil then
+
+                    local room = square:getRoom(); 
+
+                    if room == nil then 
+                        
+                    else 
+
+                        spawnRoom = room
+
+                        spawnRoomDef = spawnRoom:getRoomDef()
+
+
+                        local def = room:getRoomDef()
+                        
+                        if def then
+
+                            building = room:getBuilding()
+                            buildingDef = building:getDef()
+
+                            keyId = buildingDef:getKeyId()
+
+                            occupantsCnt = BWORooms.GetRoomCurrPop(room)
+                            occupantsMax = BWORooms.GetRoomMaxPop(room)
+
+                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+
+                            event.bandits = {}
+
+                            event.hostile = false
+                            event.occured = false
+                            event.program = {}
+                        
+                            if ZombRand(1, 50) > 50 then
+                                
+                                event.program.name = "Survivor"
+                                event.program.stage = "Main"
+
+                            else
+                                
+                                event.program.name = "Inhabitant"
+                                event.program.stage = "Main"
+
+                            end
+
+
+
+                            local spawnSquare = spawnRoomDef:getFreeSquare()
+
+                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            
+                            if spawnSquare and not spawnSquare:getZombie() then
+
+                                if occupantsCnt < math.ceil(occupantsMax / 3) and occupantsCnt < 5 then
+                                    
+
+                                    local bandit = BanditCreator.MakeFromRoom(spawnRoom)
+                                    
+                                    if bandit then
+                                        table.insert(event.bandits, bandit)
+                                    end
+
+                                    sendClientCommand(player, 'Commands', 'SpawnGroup', event)
+
+                                    pl:Say("spawned FROM ROOM!!!!!!")
+
+                                    break
+                                end
+
+
+                            end
+
+
+
+                        end
+                    end
+
+                
+                else
+
+                    local returnedThing
+
+                    if outsideNpcs_R69 / (insideNpcs_R69 + outsideNpcs_R69) < 0.6 then
+
+                        returnedThing = simpWalkerSpawner(tab1[i].x, tab1[i].y, tab1[i].z)
+
+                        if returnedThing ~= nil then
+                            
+                            pl:Say("spawned NOT from room!!!!!!")
+
+                            break
+
+                        end
+                    end
+
+                end
+            end
+
+
+
+        end
+
+        
+    end
+    
+
+
+
+
+
+
+
+
+
+end
+-- slapDashSpawner2()
 
 local function slapDashSpawner()
 
@@ -4164,31 +5201,16 @@ local function slapDashSpawner()
 
 
 
-    if BWOScheduler.WorldAge <= 132 then
-        maxNpcs_R69 = 15
-    else
-        BWOPopControl.InhabitantsNominal = 14 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.StreetsNominal = 11 - (BWOScheduler.WorldAge - 133)
-        BWOPopControl.SurvivorsNominal = 16 - (BWOScheduler.WorldAge - 133)
+    local mainR69 = ModData.getOrCreate("mainR69")
 
-        maxNpcs_R69 = (BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal)
-        
-    end
 
-    local approxHutsCount = 0; 
-    
-    approxHutsCount = ZZA_countNearbyBuildings(getPlayer(0), 40, 4)
 
-    if approxHutsCount > 0 then
-        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
-    end
+    -- for k, v in pairs(vipsHere) do
+    --     -- hutsCsv[k] = nil
+    --     -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
 
-    for k, v in pairs(vipsHere) do
-        -- hutsCsv[k] = nil
-        -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-        -- print("Key:", k, "Value of v.fullname: ", v.fullname)
-
-    end
+    -- end
 
 
     local hutsCsv = ModData.getOrCreate("hutsCsv")
@@ -4202,76 +5224,19 @@ local function slapDashSpawner()
 
     local totNpcsInRegion = 0
 
-    local livingNumber_OG = 0
+    local npcsLeft_OG = 0
 
     local hutsCountedSaved = 0
 
-    for k, v in pairs(hutsCsv) do
-        if v.npcsLeft > 0 then
-            keyId = k
 
-            bx = v.x; by = v.y
-
-            tx = v.x2; ty = v.y2
-
-            local x1, x2, y1, y2
-
-            if v.x < v.x2 then
-                x1 = v.x
-                x2 = v.x2
-            else
-                x1 = v.x2
-                x2 = v.x
-            end
-            
-            if v.y < v.y2 then
-                y1 = v.y
-                y2 = v.y2
-            else
-                y1 = v.y2
-                y2 = v.y
-            end
-
-            local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-            
-            if px > x1 and px < x2 and py > y1 and py < y2 then
-
-                -- livingNumber_OG
-
-                maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-
-                totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-
-                hutsCountedSaved = hutsCountedSaved + 1
-
-            else
-                if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                    -- maxNpcs_R69 = maxNpcs_R69 + addNum
-
-                    maxNpcs_R69 = maxNpcs_R69 + v.npcsLeft
-
-                    totNpcsInRegion = totNpcsInRegion + v.npcsLeft
-
-                    hutsCountedSaved = hutsCountedSaved + 1
-
-                end
-            end
-
-        end
-    end
-
-
-
-    -- approxHutsCount
-
-    -- local addNumberForApproxHuts
+    local mainR69 = ModData.getOrCreate("mainR69")
 
 
     if quickCountNearbyNpcs_R69 >= maxNpcs_R69 then
         
         do return end
 
-        -- pl:Say("totNpcsInRegion is " .. tostring(totNpcsInRegion))
+        -- -- pl:Say("totNpcsInRegion is " .. tostring(totNpcsInRegion))
         
     end
 
@@ -4469,11 +5434,11 @@ local function slapDashSpawner()
 
                     numHutsFound = numHutsFound + 1
 
-                    -- pl:Say("Debug:  THIS spot can spawn NPCs!")
+                    -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
+                        -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -4524,7 +5489,7 @@ local function slapDashSpawner()
 
                     if occupantsCnt < occupantsMax then
 
-                        -- pl:Say("Debug:  debug: preparing to spawn...")
+                        -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                         local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -4532,11 +5497,11 @@ local function slapDashSpawner()
 
                             local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                            -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                             
                             if spawnSquare and not spawnSquare:getZombie() and not spawnSquare:isOutside() and spawnSquare:isFree(false) and BanditCompatibility.HaveRoofFull(spawnSquare) and not BWOSquareLoader.IsInExclusion(spawnSquare:getX(), spawnSquare:getY()) then
 
-                                -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                 local chanceOfOutside = 70
 
@@ -4548,7 +5513,7 @@ local function slapDashSpawner()
 
                                 if ZombRand(1, 100) < chanceOfOutside and walkX ~= nil then
 
-                                    -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
+                                    -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
     
                                     event.x = walkX
                                     event.y = walkY
@@ -4566,7 +5531,7 @@ local function slapDashSpawner()
 
                                 if dist >= 7 and dist < 45 then
 
-                                    -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+                                    -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
 
                                     event.bandits = {}
 
@@ -4592,16 +5557,16 @@ local function slapDashSpawner()
                                     local bandit = BanditCreator.MakeFromRoom(spawnRoom)
                                     if bandit then
 
-                                        -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
+                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
 
                                         table.insert(event.bandits, bandit)
 
-                                        -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
+                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
 
 
                                         sendClientCommand(player, 'Commands', 'SpawnGroup', event)
 
-                                        -- pl:Say("Debug:  debug:paring to spawn... pt 5c")
+                                        -- -- pl:Say("Debug:  debug:paring to spawn... pt 5c")
 
 
                                         -- break
@@ -4713,11 +5678,6 @@ local function slapDashSpawner()
     local walkX, walkY, walkZ
 
 
-    maxNpcs_R69 = BWOPopControl.InhabitantsNominal + BWOPopControl.StreetsNominal + BWOPopControl.SurvivorsNominal
-
-    if maxNpcs_R69 > 100 then
-        maxNpcs_R69 = 100
-    end
 
     local numHutsFound = 0
 
@@ -4759,11 +5719,11 @@ local function slapDashSpawner()
 
                     numHutsFound = numHutsFound + 1
 
-                    -- pl:Say("Debug:  THIS spot can spawn NPCs!")
+                    -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
+                        -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -4844,7 +5804,7 @@ local function slapDashSpawner()
 
                         if occupantsCnt < occupantsMax then
 
-                            -- pl:Say("Debug:  debug: preparing to spawn...")
+                            -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                             local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -4852,11 +5812,11 @@ local function slapDashSpawner()
 
                                 local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                                -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                                 
                                 if spawnSquare and not spawnSquare:getZombie() and not spawnSquare:isOutside() and spawnSquare:isFree(false) and BanditCompatibility.HaveRoofFull(spawnSquare) and not BWOSquareLoader.IsInExclusion(spawnSquare:getX(), spawnSquare:getY()) then
 
-                                    -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                    -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                     local chanceOfOutside = 70
 
@@ -4868,7 +5828,7 @@ local function slapDashSpawner()
 
                                     if ZombRand(1, 100) < chanceOfOutside and walkX ~= nil then
 
-                                        -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
+                                        -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
         
                                         event.x = walkX
                                         event.y = walkY
@@ -4886,7 +5846,7 @@ local function slapDashSpawner()
 
                                     if dist >= 7 and dist < 45 then
 
-                                        -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
 
                                         event.bandits = {}
 
@@ -4912,17 +5872,23 @@ local function slapDashSpawner()
                                         local bandit = BanditCreator.MakeFromRoom(spawnRoom)
                                         if bandit then
 
-                                            -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
+                                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
 
                                             table.insert(event.bandits, bandit)
 
-                                            -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
+                                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
 
+                                            -- BanditCreator.MakeFromRoom
 
-                                            sendClientCommand(player, 'Commands', 'SpawnGroup', event)
+                                            if getGameTime():getDay() > 15 then
+                                                simpWalkerSpawner(spawnSquare:getX(), spawnSquare:getY(), spawnSquare:getZ())
+                                            else
+                                                sendClientCommand(player, 'Commands', 'SpawnGroup', event)
+                                            end
 
-                                            -- pl:Say("Debug:  debug:paring to spawn... pt 5c")
+                                            -- pl:Say("Debug: npc ".. tostring(event.program.name) .. " just spawned as part of slap dash func at dist ".. tostring(dist) .. "!")
 
+                                            -- dist
 
                                             -- break
                                         end
@@ -4941,7 +5907,7 @@ local function slapDashSpawner()
         
         else
             -- if ZombRand(1,)
-            simpWalkerSpawner(walkX, walkY, walkZ)
+            -- simpWalkerSpawner(walkX, walkY, walkZ)
         end
     
 
@@ -4964,6 +5930,22 @@ local onTickZZB = function(numTicksInZZB)
         do return end
     end
 
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+    if not mainR69.basePop then
+        mainR69.baseMult = 3.0; mainR69.basePop = 25
+    end
+
+
+
+    
+
+    deadCount1()
+
+
+
+
+
     local count = 0
 
     local px = math.floor(player:getX())
@@ -4976,177 +5958,160 @@ local onTickZZB = function(numTicksInZZB)
 
     local building; local buildingDef; local keyId
 
-    local approxHutsCount = ZZA_countNearbyBuildings(getPlayer(), 5, 1)
-
-    if tonumber(approxHutsCount) == nil then
-        approxHutsCount = 0
-    end
-
-
-
-    local forcedToEveryTick = false
-
+    local approxHutsCount
     
-    if approxHutsCount > 0 then
-        forcedToEveryTick = true
-    else
+    -- = ZZA_countNearbyUnCountedHuts(getPlayer(), 40, 2)
 
-        if square then
-            
-            building = square:getBuilding()
-
-            if building and not seen[building] then
-
-                buildingDef = building:getDef()
-                keyId = buildingDef:getKeyId()
-
-                if hutsCsv[keyId] ~= nil then
-
-                    if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
-                        forcedToEveryTick = true
-                    
-
-                    end
-
-                end
-                
-            end
-        end
-    end
-
+    local npcsAllowed_OG = 0
+    local npcsAllowedLeft = 0
 
     local forcedToEveryTenTicks = false
+    local forcedToEveryTick = false
 
-    if forcedToEveryTick == false then
-
-        if (quickCountNearbyNpcs_R69 / maxNpcs_R69) >= 0.90 then
-
-            forcedToEveryTenTicks = true
-
-        else
-            
-
-            if (quickCountNearbyZeds_R69 / maxZeds_R69) >= 0.90 then
-
-                forcedToEveryTenTicks = true
-
-            end
-        end
+    -- forcedToEveryTick
+    if tonumber(approxHutsCount) == nil then
+        approxHutsCount = 0
     end
 
     local bx, by, bz
 
     local dist
 
-    if forcedToEveryTick == false then
-
-        local tx, ty;
-        local bx, by
-
-        local x1, y1
-        local x2, y2
-
-        local totNpcsInRegion = 0
-
-        for k, v in pairs(hutsCsv) do
-            if v.npcsLeft > 0 then
-
-                keyId = k
-
-                bx = v.x; by = v.y
-
-                tx = v.x2; ty = v.y2
-
-                local x1, x2, y1, y2
-
-                if v.x < v.x2 then
-                    x1 = v.x
-                    x2 = v.x2
-                else
-                    x1 = v.x2
-                    x2 = v.x
-                end
-                
-                if v.y < v.y2 then
-                    y1 = v.y
-                    y2 = v.y2
-                else
-                    y1 = v.y2
-                    y2 = v.y
-                end
-
-                local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-                -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-                -- BanditUtils.DistTo(px, py, x1, y1) < 35 or BanditUtils.DistTo(px, py, x2, y2) < 35 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 35
-
-                -- BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100
 
 
-                if px > x1 and px < x2 and py > y1 and py < y2 then
-                    -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                    totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+    local tx, ty;
+    local bx, by
 
-                    if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
-                        forcedToEveryTick = true
-                    end
+    local x1, y1
+    local x2, y2
 
-                else
-                    if BanditUtils.DistTo(px, py, x1, y1) < 100 or BanditUtils.DistTo(px, py, x2, y2) < 100 or BanditUtils.DistTo(px, py, (x2 + x1)/2, (y2 + y1)/2) < 100 then
-                        -- maxNpcs_R69 = maxNpcs_R69 + addNum
-                        totNpcsInRegion = totNpcsInRegion + v.npcsLeft
+    local totNpcsInRegion = 0
 
-                        if math.abs((hutsCsv[keyId].totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) < 3 then
-                            forcedToEveryTick = true
+
+    local mainR69 = ModData.getOrCreate("mainR69")
+
+    if not mainR69.basePop then
+        mainR69.baseMult = 3.0; mainR69.basePop = 25
+    end
+    
+    ------------------------------------------------ +
+    ------------------------------------------------ +
+
+
+    if tonumber(npcsAllowedLeft) == nil then
+        npcsAllowedLeft = 0
+    end
+
+    if tonumber(npcsAllowed_OG) == nil then
+        npcsAllowed_OG = 0
+    end
+
+
+    npcsAllowed_OG = npcsAllowed_OG + mainR69.basePop; 
+    
+    maxNpcs_R69_OG = npcsAllowed_OG
+
+    npcsAllowedLeft = npcsAllowedLeft + mainR69.basePop; 
+    
+    maxNpcs_R69 = npcsAllowedLeft
+
+    ------------------------------------------------ +
+    ------------------------------------------------ +
+
+    npcsAllowedLeft, npcsAllowed_OG = ZZA2_AllNpcsLeftNearbyHuts(getPlayer(0), 40, 2)
+
+    local approxHutsCount = npcsAllowedLeft
+
+    if approxHutsCount > 0 then
+        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
+        maxNpcs_R69_OG = npcsAllowed_OG + approxHutsCount
+    end
+
+    if maxNpcs_R69 > 100 then
+        maxNpcs_R69 = 100
+    end
+
+    if maxNpcs_R69_OG > 100 then
+        maxNpcs_R69_OG = 100
+    end
+
+
+    if numTicksInZZB % 2 == 0 then
+        doEveryTick()
+    end
+
+    if numTicksInZZB % 10 == 0 then
+        doEvery10Ticks()
+    end
+    
+    if numTicksInZZB % 60 == 0 then
+        doEvery60Ticks()
+    end
+
+    local player = getPlayer(0)
+
+    local nearbyHuts = 0
+
+    local coordsTab1
+
+    local spawnedNpcHere = false
+
+
+    nearbyHuts = countTotalHuts(player, 40, 4)
+
+
+    -- quickCountNearbyNpcs_R69 < maxNpcs_R69
+    if numTicksInZZB % 47 == 0 and quickCountNearbyNpcs_R69 < maxNpcs_R69 then
+
+        -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
+        -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
+
+
+        -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+        -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
+
+        if insideNpcs_R69 < outsideNpcs_R69 or quickCountNearbyNpcs_R69 < (maxNpcs_R69 * (5/10)) or ZombRand(0, 100) > 90 then
+
+            if nearbyHuts >= ZombRand(1, 4) then
+                slapDashSpawner2()
+            end
+
+        end
+        
+    end
+
+
+    if numTicksInZZB % 30 == 0 then
+
+        if (quickCountNearbyNpcs_R69 / maxNpcs_R69) < 0.8 then
+
+            if numTicksInZZB % 180 == 0 or maxNpcs_R69 < (quickCountNearbyNpcs_R69 - 20) then
+
+                if nearbyHuts >= 2 then
+
+                    if insideNpcs_R69 > outsideNpcs_R69 or ZombRand(1, 100) > 50 then
+
+                        coordsTab1 = returnGravelGrass(player, 25, 2)
+
+                        if coordsTab1 ~= nil then
+                            simpWalkerSpawner(coordsTab1.x, coordsTab1.y, 0)
+
+                            -- print("attempting spawn here " .. tostring(coordsTab1.x))
+                            -- spawnedNpcHere = true
                         end
 
+                    else
+                        slapDashSpawner2()
+                        -- spawnedNpcHere = true
                     end
+                    -- simpWalkerSpawner(x_in, y_in, z_in)
                 end
-
-            end
-        end
-    end
-    
-
-    if forcedToEveryTick == true then
-       
-        if numTicksInZZB % 2 == 0 or numTicksInZZB % 2 ~= 0 then
-            allButSpawn()
-        end
-
-    else
-
-        if forcedToEveryTenTicks == true then
-
-            if numTicksInZZB % 10 == 0 then
-                allButSpawn()
             end
 
-        else
-
-            if numTicksInZZB % 60 == 0 then
-                allButSpawn()
-            end
 
         end
-       
-
-    end
- 
-    
 
 
-
-
-
-
-
-
-
-    if numTicksInZZB % 25 == 0 then
-
-        npcChecker()
 
     end
 
@@ -5163,16 +6128,13 @@ local onTickZZB = function(numTicksInZZB)
 
     end
 
-    -- 
-
     if numTicksInZZB % 177 == 0 then
         npcHandler()
     end
 
     if numTicksInZZB % 12 == 0 then
-        fixNakedNpcs()
+        fixNakedNpcs(nil)
     end
-    -- 
 
 
     if numTicksInZZB % 30 == 0 then
@@ -5236,20 +6198,20 @@ local onTickZZB = function(numTicksInZZB)
         slapNum = 180
     end
     
-    if quickCountNearbyNpcs_R69 > 50 then
+    if quickCountNearbyNpcs_R69 > 50 or (quickCountNearbyNpcs_R69 / maxNpcs_R69) > 0.5 then
         slapNum = 360
     end
 
-    if quickCountNearbyNpcs_R69 > 70 then
+    if quickCountNearbyNpcs_R69 > 70 or (quickCountNearbyNpcs_R69 / maxNpcs_R69) > 0.7 then
         slapNum = 720
     end
 
 
-    if quickCountNearbyNpcs_R69 > 80 then
+    if quickCountNearbyNpcs_R69 > 80 or (quickCountNearbyNpcs_R69 / maxNpcs_R69) > 0.8 then
         slapNum = 900
     end
 
-    if quickCountNearbyNpcs_R69 > 90 then
+    if quickCountNearbyNpcs_R69 > 90 or (quickCountNearbyNpcs_R69 / maxNpcs_R69) > 0.9 then
         slapNum = 1800
     end
 
@@ -5257,20 +6219,18 @@ local onTickZZB = function(numTicksInZZB)
 
         if numTicksInZZB % slapNum == 0 then
 
-
             if outsideNpcs_R69 < insideNpcs_R69 / 3 or outsideNpcs_R69 < 15 then
 
-                coordsTab1 = returnGravelGrass(player, 40, 2)
+                coordsTab1 = returnGravelGrass(player, 25, 2)
 
                 if coordsTab1 ~= nil then
                     simpWalkerSpawner(coordsTab1.x, coordsTab1.y, 0)
                 end
-                -- simpWalkerSpawner(x_in, y_in, z_in)
+
+               
             else
 
-                    slapDashSpawner()
-                -- end
-                
+                slapDashSpawner2()
             end
         end
 
@@ -5279,7 +6239,7 @@ local onTickZZB = function(numTicksInZZB)
     
 
     if numTicksInZZB % 9500 == 0 then
-        pauseThenGlobalSave12()
+        -- pauseThenGlobalSave12()
     end
 
 
@@ -5305,7 +6265,7 @@ local onTickZZB = function(numTicksInZZB)
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -5362,7 +6322,6 @@ local function onPress(key)
         do return end
     end
 
-
     local rand1 = 1
 
     if key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_ESCAPE") then
@@ -5370,12 +6329,39 @@ local function onPress(key)
         fixSpawnedToMatch("ALWAYS SHOW")
     end
 
+    if key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_8") or key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_NUMPAD8") then
 
 
-    if key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_ESCAPE") then
+        if getGameTime():getDay() < 12 then
+            pl:Say("[QUICK-START: DAY 0 OF OUTBREAK]")
+            BWOScheduler.WorldAge = 4
+            GameTime.getInstance():setDay(12)
+            GameTime.getInstance():setTimeOfDay(9)
+        else
+            pl:Say("[QUICK-START: DAY 1 OF OUTBREAK]")
+
+            if getGameTime():getDay() < 13 then
+                BWOScheduler.WorldAge = 4
+                GameTime.getInstance():setDay(13)
+                GameTime.getInstance():setTimeOfDay(9)
+            end
+
+        end
+
     end
 
-    -- 
+    if key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_9") or key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_NUMPAD9") then
+
+        if getGameTime():getDay() < 15 then
+            pl:Say("[QUICK-START: DAY 3 OF OUTBREAK]")
+            BWOScheduler.WorldAge = 4
+            GameTime.getInstance():setDay(15)
+            GameTime.getInstance():setTimeOfDay(9)
+        end
+
+    end
+
+
 end
 
 Events.OnKeyPressed.Add(onPress)
