@@ -22,7 +22,7 @@ outsideNpcs_R69 = 0
 
 -- ((SandboxVars.BanditsWeekOne.StreetsPopMultiplier + SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier) / 2)
 
--- -- print(SandboxVars.BanditsWeekOne.StreetsPopMultiplier); -- print(SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier)
+-- -- -- print(SandboxVars.BanditsWeekOne.StreetsPopMultiplier); -- -- print(SandboxVars.BanditsWeekOne.InhabitantsPopMultiplier)
 
 
 npcsCloserThan20dist_R69 = 0
@@ -60,15 +60,45 @@ local function deadCount1()
 
         if BanditZombie.GetInstanceById(npc_id) == nil then
 
-            -- -- print("npc is nil! Last dist was " .. tostring(v.lastDistanceSeen))
+            -- -- -- print("npc is nil! Last dist was " .. tostring(v.lastDistanceSeen))
 
             if v.lastDistanceSeen < 21 then
 
-                npcsKilledThisTick = npcsKilledThisTick + 1
 
-                vipsHere[k] = nil
+                local master = getSpecificPlayer(0)
 
-                -- -- pl:Say("removing NPC!!! Dead!")
+                -- update walktype
+                local vehicle = master:getVehicle()
+
+                -- fake npc in vehicle 
+                if vehicle then
+
+                    -- -- print("PLAYER IS IN CAR!")
+
+                    if v.lastDistanceSeen > 8 then
+
+                        npcsKilledThisTick = npcsKilledThisTick + 1
+
+                        vipsHere[k] = nil
+
+                        -- pl:Say("removing NPC!!! Dead!")
+
+                    else
+                        vipsHere[k] = nil
+                    end
+
+                else
+                    -- -- print("PLAYER IS NOT IN CAR!")
+
+                    npcsKilledThisTick = npcsKilledThisTick + 1
+
+                    vipsHere[k] = nil
+
+                    -- pl:Say("removing NPC!!! Dead!")
+
+                end
+
+
 
             else
                 vipsHere[k] = nil
@@ -85,7 +115,7 @@ local function deadCount1()
 
             v.lastDistanceSeen = dist
 
-            -- -- print("npc seen at dist " .. tostring(dist))
+            -- -- -- print("npc seen at dist " .. tostring(dist))
 
             v.totMinutesAtLastSeen = (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))
             
@@ -103,8 +133,8 @@ local function deadCount1()
             dist = BanditUtils.DistTo(px, py, (v.px), v.py)
 
             if dist < 40 then
-                -- -- print("this IS in zone range!")
-                -- -- pl:Say("this IS in zone range!")
+                -- -- -- print("this IS in zone range!")
+                -- -- -- pl:Say("this IS in zone range!")
 
                 if v.npcsLeft > 0 and npcsKilledThisTick > 0 then
                     v.npcsLeft = v.npcsLeft - 1
@@ -122,8 +152,8 @@ local function deadCount1()
                 end
 
             else
-                -- -- print("NOT in range")
-                -- -- pl:Say("NOT in range")
+                -- -- -- print("NOT in range")
+                -- -- -- pl:Say("NOT in range")
             end
 
 
@@ -218,11 +248,11 @@ local function giveShittyGun(npc_id_in, gun_in)
 
             if invItem:getClipSize() == 0 then
                 if tostring(bandit.weapons.primary.name) == "Base.DoubleBarrelShotgun" or "Base.DoubleBarrelShotgunSawnoff" then
-                    -- print("changing clip size from 0 to 2")
+                    -- -- print("changing clip size from 0 to 2")
                     bandit.weapons.primary.magSize = 2
                     bandit.weapons.primary.bulletsLeft = 2
                 else
-                    -- print("changing clip size from 0 to 3")
+                    -- -- print("changing clip size from 0 to 3")
                     bandit.weapons.primary.magSize = 3
                     bandit.weapons.primary.bulletsLeft = 3
                 end
@@ -529,7 +559,7 @@ local function countTotalHuts(player, radius, step)
 
                     local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
 
-                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
+                    -- -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
 
 
                     local multLeft = 0.0
@@ -665,8 +695,8 @@ local function countTotalHuts(player, radius, step)
         end
     end
 
-    -- -- print("Nearby buildings:", count)
-    -- -- print("un-counted civilians number:", npcsLeftTotal)
+    -- -- -- print("Nearby buildings:", count)
+    -- -- -- print("un-counted civilians number:", npcsLeftTotal)
     return count
 end
 
@@ -762,26 +792,9 @@ local function ZZA2_AllNpcsLeftNearbyHuts(player, radius, step)
 
                     local occupantsMax = math.ceil((math.abs(x2 - x1) * math.abs(y2 - y1)) / 20)
 
-                    -- math.abs((zedsHere[npc_id].totMinutesAtFirstSeen) - )
-                    -- 
-
-                    local npcsLeft = 8
-
-                    -- if getGameTime():getDay() >= 15 then
-                    --     -- npcsLeft = 3
-                    --     npcsLeft = 5
-
-                    --     if getGameTime():getDay() >= 18 then
-                    --         npcsLeft = 5
-                    --         -- npcsLeft = 1
-                    --     end
-                    -- end
+                    local npcsLeft = 4
 
                     local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
-
-                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
-
-
 
                     local mainR69 = ModData.getOrCreate("mainR69")
 
@@ -908,8 +921,14 @@ local function ZZA2_AllNpcsLeftNearbyHuts(player, radius, step)
         end
     end
 
-    -- -- print("Nearby buildings:", count)
-    -- -- print("un-counted civilians number:", npcsLeftTotal)
+    -- -- -- print("Nearby buildings:", count)
+    -- -- -- print("un-counted civilians number:", npcsLeftTotal)
+
+    if totLivingNumber_OG < npcsLeftTotal then
+        totLivingNumber_OG = npcsLeftTotal
+    end
+
+
     return npcsLeftTotal, totLivingNumber_OG
     
 end
@@ -970,7 +989,7 @@ function ZZA_countNearbyUnCountedHuts(player, radius, step)
 
                     local avgVar1 = math.ceil(((x2 - x1) + (y2 - y1)) / 2)
 
-                    -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
+                    -- -- -- print("debug: avgVar1 is " .. tostring(avgVar1))
 
 
                     npcsLeft = 4
@@ -1098,8 +1117,8 @@ function ZZA_countNearbyUnCountedHuts(player, radius, step)
         end
     end
 
-    -- -- print("Nearby buildings:", count)
-    -- -- print("un-counted civilians number:", npcsLeftTotal)
+    -- -- -- print("Nearby buildings:", count)
+    -- -- -- print("un-counted civilians number:", npcsLeftTotal)
     return npcsLeftTotal
 end
 
@@ -1152,9 +1171,9 @@ local function fixNakedNpcs(npc_id_in)
         by = BanditZombie.GetInstanceById(npc_id):getY();
         bz = math.floor(BanditZombie.GetInstanceById(npc_id):getZ());
         
-        -- -- print("brain.fullname is " .. brain.fullname)
-        -- -- print("brain.outfit is " .. tostring(brain.outfit))
-        -- -- print("brain.female is " .. tostring(brain.female))
+        -- -- -- print("brain.fullname is " .. brain.fullname)
+        -- -- -- print("brain.outfit is " .. tostring(brain.outfit))
+        -- -- -- print("brain.female is " .. tostring(brain.female))
 
         -- "IT"
 
@@ -1176,7 +1195,7 @@ local function fixNakedNpcs(npc_id_in)
 
         if replaceOutfit == true then
 
-            -- -- player:Say("THEY ARE NAKED; GIVE THEM A REAL OUTFIT!!!")
+            -- -- -- player:Say("THEY ARE NAKED; GIVE THEM A REAL OUTFIT!!!")
 
 
             comboTab1 = {fullname=tostring(brain.fullname), deadNow=false, trust=ZombRand(0, 50), keyId=keyId, outfit=tostring(brain.outfit), id=npc_id, day=tonumber(getGameTime():getDay()), hour=tonumber(getGameTime():getHour()), minute=tonumber(getGameTime():getMinutes()), melee=tostring(brain.weapons.melee), primaryGunName=tostring(brain.weapons.primary.name), secondaryGunName=tostring(brain.weapons.secondary.name), bornX=(brain.bornCoords.x), bornY=(brain.bornCoords.y), bornZ=(brain.bornCoords.z), infection=(brain.infection), health=tonumber(brain.health), female=(brain.female), skinTexture=tostring(brain.skinTexture), hairStyle=tostring(brain.hairStyle), hairColorR=(brain.hairColor.r), hairColorG=(brain.hairColor.g), hairColorB=(brain.hairColor.b), beardColorR=(brain.beardColor.r), beardColorG=(brain.beardColor.g), beardColorB=(brain.beardColor.b), lastDistanceSeen=dist, totMinutesAtLastSeen=(getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))}
@@ -1223,8 +1242,8 @@ local function fixNakedNpcs(npc_id_in)
 
             end
 
-            -- -- player:Say("your beard is " .. tostring(brain.beardStyle))
-            -- -- player:Say("your fullname was " .. tostring(brain.fullname))
+            -- -- -- player:Say("your beard is " .. tostring(brain.beardStyle))
+            -- -- -- player:Say("your fullname was " .. tostring(brain.fullname))
 
             -- banditVisuals:setBeardModel("Long")
             banditVisuals:setBeardModel(tostring(comboTab1.beardStyle))
@@ -1284,8 +1303,8 @@ local function fixSpawnedToMatch(display_mode_in)
 
     -- for k, v in pairs(vipsHere) do
     --     -- hutsCsv[k] = nil
-    --     -- -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-    --     -- -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
+    --     -- -- -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
 
     -- end
 
@@ -1309,7 +1328,7 @@ local function fixSpawnedToMatch(display_mode_in)
     local vipsHere = ModData.getOrCreate("vipsHere")
 
     -- for k, v in pairs(hutsCsv) do
-    --     -- print("OG=" .. tostring(hutsCsv[k].npcsLeft_OG) .. ", npcsLeft=" .. tostring(hutsCsv[k].npcsLeft))
+    --     -- -- print("OG=" .. tostring(hutsCsv[k].npcsLeft_OG) .. ", npcsLeft=" .. tostring(hutsCsv[k].npcsLeft))
     --     -- hutsCsv[k] = nil
     -- end
 
@@ -1388,23 +1407,48 @@ local function fixSpawnedToMatch(display_mode_in)
 
 
 
+
+
+
+    if maxNpcs_R69 > 100 then
+        TEXT_maxNpcs_R69 = "100+"
+    else
+        TEXT_maxNpcs_R69 = tostring(quickCountNearbyNpcs_R69 - nonResidents)
+    end
+
     if maxNpcs_R69 > maxNpcs_R69_OG then
-        nonResidents = maxNpcs_R69 - maxNpcs_R69_OG
 
-        if maxNpcs_R69 > 100 then
-            TEXT_maxNpcs_R69 = "100+"
-        else
-            TEXT_maxNpcs_R69 = tostring(maxNpcs_R69 - nonResidents)
+    end
+
+    if maxNpcs_R69_OG < maxNpcs_R69 then
+
+        if quickCountNearbyNpcs_R69 > maxNpcs_R69 then
+            TEXT_maxNpcs_R69_OG = tostring(maxNpcs_R69)
+            -- nonResidents = quickCountNearbyNpcs_R69 - maxNpcs_R69_OG
         end
-
 
     end
 
 
-    
-
     if tostring(display_mode_in) == "ALWAYS SHOW" then
-        pl:Say("[ CURRENT AREA HAS " .. tostring(TEXT_maxNpcs_R69) .. " of " .. tostring(TEXT_maxNpcs_R69_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(quickCountNearbyNpcs_R69 - nonResidents) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
+        -- -- pl:Say("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
+
+        
+        -- -- pl:Say("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+        -- -- pl:Say("maxNpcs_R69_OG is " .. tostring(maxNpcs_R69_OG))
+
+
+        local text_quickCountNearbyNpcs_R69 = tostring(quickCountNearbyNpcs_R69)
+
+        if quickCountNearbyNpcs_R69 > maxNpcs_R69 then
+            nonResidents = quickCountNearbyNpcs_R69 - maxNpcs_R69
+            text_quickCountNearbyNpcs_R69 = tostring(maxNpcs_R69)
+        end
+
+
+        pl:Say("[ CURRENT AREA HAS " .. tostring(maxNpcs_R69) .. " of " .. tostring(maxNpcs_R69_OG) .. " SURVIVING RESIDENTS REMAINING (" .. tostring(quickCountNearbyNpcs_R69 - nonResidents) .. " HERE NOW + " .. tostring(nonResidents) .. " NON-RESIDENTS) ]")
+
+        -- nonResidents
 
     end
 
@@ -1510,7 +1554,7 @@ local function npcHandler()
                                     local args = { id = npc_id } -- ✅ don’t leak globals
                                     sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                    pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
+                                    -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
 
 
                                     quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
@@ -1609,7 +1653,7 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
 
     end
-    -- -- print("footstepMatHere is " .. tostring(footstepMatHere))
+    -- -- -- print("footstepMatHere is " .. tostring(footstepMatHere))
 
     -- if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Sand" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic"
 
@@ -1624,11 +1668,11 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
     -- event.program.name = "Survivor"
     -- event.program.stage = "Main"
 
-    -- pl:Say("simpWalkerSpawner CALLED!")
+    -- -- pl:Say("simpWalkerSpawner CALLED!")
 
     if tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" or ZombRand(1, 1000) > 980 then
 
-        -- pl:Say("simpWalkerSpawner beat rando!")
+        -- -- pl:Say("simpWalkerSpawner beat rando!")
 
         if getGameTime():getDay() < 13 then
 
@@ -1781,7 +1825,13 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
         local player = getPlayer(0)
 
-        if ZombRand(1, 100) > 50 or getGameTime():getDay() >= 14 then
+        local bool14B = false
+
+        if getGameTime():getDay() == 13 and ZombRand(1, 100) > 50 then
+            bool14B = true
+        end
+
+        if getGameTime():getDay() >= 14 and bool14B == true then
 
             local eyesAdded = 0
 
@@ -2057,9 +2107,6 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
 
 
-
-
-
             if ZombRand(1, 1000) > 500 then
                 bandit.femaleChance = 100
                 bandit.outfit = BanditUtils.Choice(femaleOutfits)
@@ -2266,7 +2313,9 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
 
                 local rnd = ZombRand(100)
 
-                if rnd < 4 and tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic" then
+                -- tostring(footstepMatHere) == "Gravel" or tostring(footstepMatHere) == "Concrete" or tostring(footstepMatHere) == "Ceramic"
+
+                if rnd < 4 and tostring(footstepMatHere) == "Concrete" then
                     bandit = BanditCreator.MakeFromWave(config)
                     bandit.weapons.melee = "Base.BareHands"
                     bandit.outfit = BanditUtils.Choice({"StreetSports"})
@@ -2346,7 +2395,7 @@ local function simpWalkerSpawner(x_in, y_in, z_in)
         return 1
 
 
-        -- player:Say("Debug: spawned in a " .. tostring(event.program.name) .. "!")
+        -- -- player:Say("Debug: spawned in a " .. tostring(event.program.name) .. "!")
 
     end
 
@@ -2390,7 +2439,7 @@ local function fixMusicManClusterFuck()
 
     if not result.id then
     else
-        -- -- -- pl:Say("found")
+        -- -- -- -- pl:Say("found")
         npc_id = result.id
         babe1 = BanditZombie.GetInstanceById(npc_id)
         bandit = BanditZombie.GetInstanceById(npc_id)
@@ -2412,7 +2461,7 @@ local function fixMusicManClusterFuck()
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -2429,7 +2478,7 @@ local function fixMusicManClusterFuck()
 
     if not result.id then
     else
-        -- -- -- pl:Say("found")
+        -- -- -- -- pl:Say("found")
         npc_id = result.id
         babe1 = BanditZombie.GetInstanceById(npc_id)
         bandit = BanditZombie.GetInstanceById(npc_id)
@@ -2451,7 +2500,7 @@ local function fixMusicManClusterFuck()
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -2504,11 +2553,11 @@ local function fixMusicManClusterFuck()
                     task = Bandit.GetTask(bandit)
 
 
-                    -- -- -- print(tostring(task))
+                    -- -- -- -- print(tostring(task))
 
-                    -- -- -- print(" -------------------------- ")
+                    -- -- -- -- print(" -------------------------- ")
 
-                    -- -- -- print("brain.tasks[1].anim is " .. tostring(brain.tasks[1].anim))
+                    -- -- -- -- print("brain.tasks[1].anim is " .. tostring(brain.tasks[1].anim))
 
                     -- tostring(bandit.tasks[1].anim)
 
@@ -2516,7 +2565,7 @@ local function fixMusicManClusterFuck()
 
                     if task ~= nil then
                         for k, v in pairs(task) do
-                            -- -- print(tostring(k) .. ": " .. tostring(v))
+                            -- -- -- print(tostring(k) .. ": " .. tostring(v))
                         end
                     end
 
@@ -2550,7 +2599,7 @@ local function fixMusicManClusterFuck()
                             args = {x=bx+i, y=by+j, z=bz, otype="entertainer"}
                             sendClientCommand(player, 'Commands', 'ObjectRemove', args)
 
-                            -- -- -- pl:Say("remove NODDING!!!")
+                            -- -- -- -- pl:Say("remove NODDING!!!")
 
                             -----------                
                             ---
@@ -2623,6 +2672,8 @@ local function pauseThenGlobalSave12()
     ModData.transmit("hutsCsv")
 
     ModData.transmit("mainR69")
+
+    ModData.transmit("vipsHereInCar")
 
 
 end
@@ -2792,7 +2843,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if activeSpawningHutKeyId == nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -2815,7 +2866,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if activeSpawningHutKeyId == nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -2835,7 +2886,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     -- NO DOUBLE-DIPPING OR SPAWNING WHILE DE-SPAWNING:
 
     for k, v in pairs(hutsCsv) do
-        -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+        -- -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
 
         keyId = tonumber(k)
 
@@ -2884,7 +2935,7 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     if tostring(hutsCsv[activeSpawningHutKeyId].isAlarmed) == "false" then
 
         for k, v in pairs(hutsCsv) do
-            -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
+            -- -- -- -- print("Key:", k, "Value of v.maxNpcSlots: ", v.maxNpcSlots)
 
             if math.abs((v.totMinutesAtFirstSeen) - (getGameTime():getMinutes() + (getGameTime():getHour() * 60) + (getGameTime():getDay() * 60 * 24))) > 3 then
 
@@ -3114,8 +3165,8 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
     local pl = getPlayer(0)
 
     if count > 1 then
-        -- -- print("more than one player")
-        -- -- -- pl:Say("more than one player")
+        -- -- -- print("more than one player")
+        -- -- -- -- pl:Say("more than one player")
 
         -- we wanna spawn them a little further away probably if there's more than one player present (for split-screen co-op so we don't spawn right on top of another player)
 
@@ -3154,8 +3205,8 @@ local function dripSpawnZs4Huts(x_in2, y_in2, z_in2, tick_in2, footMat_in2)
         hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft - numberOfZombies
 
     else
-        -- -- print("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
-        -- -- -- pl:Say("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+        -- -- -- print("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
+        -- -- -- -- pl:Say("EMPTY SPAWN LOCATION CAN BE SEEN! ABORT! DONT SPAWN ZEDS HERE!")
     end
 
 
@@ -3353,7 +3404,7 @@ local function doEvery10Ticks()
             local brain = BanditBrain.Get(zombie)
             local prg = brain.program.name
 
-            -- -- -- print("bandit??? -> program name is: " .. tostring(prg))
+            -- -- -- -- print("bandit??? -> program name is: " .. tostring(prg))
 
             quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 + 1
 
@@ -3367,18 +3418,18 @@ local function doEvery10Ticks()
 
 
         else
-            -- -- print("no???")
+            -- -- -- print("no???")
             quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 + 1
         end
     end
 
 
-    -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
-    -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
+    -- -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
+    -- -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
 
 
-    -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
-    -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
+    -- -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+    -- -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
 
 
 
@@ -3491,9 +3542,9 @@ local function doEveryTick()
 
     -- for k, v in pairs(hutsCsv) do
     --     -- hutsCsv[k] = nil
-    --     -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-    --     -- -- -- print("Key:", k, "Value of v.px: ", v.px)
-    --     -- -- -- print("Key:", k, "Value of v.py: ", v.py)
+    --     -- -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- -- -- print("Key:", k, "Value of v.px: ", v.px)
+    --     -- -- -- -- print("Key:", k, "Value of v.py: ", v.py)
     -- end
 
     local bx, by
@@ -3512,7 +3563,7 @@ local function doEveryTick()
         end
     end
 
-    -- -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+    -- -- -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
 
 
 
@@ -3700,8 +3751,6 @@ local function doEvery60Ticks()
     local vipsHere = ModData.getOrCreate("vipsHere")
     local mainR69 = ModData.getOrCreate("mainR69")
 
-    local approxHutsCount = 0; 
-
     maxZeds_R69 = maxZeds_sandbox_knob250
     
     local zedsHere = ModData.getOrCreate("zedsHere")
@@ -3807,7 +3856,7 @@ local function doEvery60Ticks()
     for i = 0, zombieList:size() - 1 do
 
 
-        -- -- print(" ------>>>> print THIS if this is running!!")
+        -- -- -- print(" ------>>>> print THIS if this is running!!")
         
 
         zombie = zombieList:get(i)
@@ -3882,7 +3931,7 @@ local function doEvery60Ticks()
 
                                 quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
-                                pl:Say("DE-SPAWNED NPC SINCE WE WERE NEAR OVER-FLOWING function!")
+                                -- pl:Say("DE-SPAWNED NPC SINCE WE WERE NEAR OVER-FLOWING function!")
 
                                 break
 
@@ -3911,7 +3960,7 @@ local function doEvery60Ticks()
                                     local args = { id = npc_id } -- ✅ don’t leak globals
                                     sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                    pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
+                                    -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 2!")
 
 
                                     quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
@@ -3967,7 +4016,7 @@ local function doEvery60Ticks()
                             
                             if BanditZombie.GetInstanceById(npc_id) ~= nil then
 
-                                -- -- print("bandit??? -> program name is: " .. tostring(prg))
+                                -- -- -- print("bandit??? -> program name is: " .. tostring(prg))
 
 
                                 -- brain = BanditBrain.Get(BanditZombie.GetInstanceById(npc_id))
@@ -4058,7 +4107,7 @@ local function doEvery60Ticks()
                                                         args = { id = brain.id } -- ✅ don’t leak globals
                                                         sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                                        pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 3!")
+                                                        -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 3!")
 
                                                         quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
@@ -4102,7 +4151,7 @@ local function doEvery60Ticks()
                                             args = { id = brain.id } -- ✅ don’t leak globals
                                             sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                            pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 4!")
+                                            -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 4!")
 
                                             quickCountNearbyNpcs_R69 = quickCountNearbyNpcs_R69 - 1
 
@@ -4130,14 +4179,14 @@ local function doEvery60Ticks()
 
 
                 else
-                    -- -- print("no???")
+                    -- -- -- print("no???")
                     -- quickCountNearbyZeds_R69 = quickCountNearbyZeds_R69 + 1
 
                     if quickCountNearbyZeds_R69 > maxZeds_R69 then
 
                         npc_id = BanditUtils.GetCharacterID(zombie)
 
-                        -- -- -- pl:Say("....BanditUtils.GetCharacterID(zombie) is " .. tostring(BanditUtils.GetCharacterID(zombie)))
+                        -- -- -- -- pl:Say("....BanditUtils.GetCharacterID(zombie) is " .. tostring(BanditUtils.GetCharacterID(zombie)))
                         -- npc_id = zombie.id
 
                         if zedsHere[npc_id] == nil then
@@ -4180,7 +4229,7 @@ local function doEvery60Ticks()
                                                                 args = { id = zombie.id } -- ✅ don’t leak globals
                                                                 sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                                                pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 5!")
+                                                                -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 5!")
 
                                                                 hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft + 1
 
@@ -4198,7 +4247,7 @@ local function doEvery60Ticks()
                                                         args = { id = zombie.id } -- ✅ don’t leak globals
                                                         sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                                        pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 6!")
+                                                        -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 6!")
 
                                                         hutsCsv[keyId].totZombiesLeft = hutsCsv[keyId].totZombiesLeft + 1
 
@@ -4276,9 +4325,9 @@ local function doEvery60Ticks()
                                             npc_id = BanditUtils.GetCharacterID(zombie)
 
 
-                                            -- -- -- pl:Say("...wtf??? zombie.id is " .. tostring(zombie.id))
+                                            -- -- -- -- pl:Say("...wtf??? zombie.id is " .. tostring(zombie.id))
 
-                                            -- -- -- pl:Say("...wtf??? npc_id from BanditUtils.GetCharacterID(zombie) is " .. tostring(npc_id))
+                                            -- -- -- -- pl:Say("...wtf??? npc_id from BanditUtils.GetCharacterID(zombie) is " .. tostring(npc_id))
 
                                             -- maxZeds_R69
 
@@ -4384,7 +4433,7 @@ local function doEvery60Ticks()
                                                             args = { id = npc_id } -- ✅ don’t leak globals
                                                             sendClientCommand(player, "Commands", "BanditRemove", args)
 
-                                                            pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 7")
+                                                            -- pl:Say("DE-SPAWNED NPC SINCE WE WERE OVER-FLOWING using fixSpawnedToMatch function spot 7")
 
                                                             if keyId == nil then
                                                             totZedsOverFlow_R69 = totZedsOverFlow_R69 + 1
@@ -4480,7 +4529,7 @@ local function preDripper(tick_in)
                 do return end
             else
 
-                -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+                -- -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
                 keyId = k
                 activeSpawningHutKeyId = k
 
@@ -4492,7 +4541,7 @@ local function preDripper(tick_in)
     if activeSpawningHutKeyId ~= nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+            -- -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -4537,7 +4586,7 @@ local function preDripper(tick_in)
     if activeSpawningHutKeyId ~= nil then
 
         for k, v in pairs(hutsCsv) do
-            -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
+            -- -- -- -- print("Key:", k, "Value of v.maxzomboSlots: ", v.maxzomboSlots)
             keyId = k
 
             if hutsCsv[keyId] ~= nil then
@@ -4785,11 +4834,11 @@ local function preDripper(tick_in)
 
                     numHutsFound = numHutsFound + 1
 
-                    -- -- pl:Say("Debug:  THIS spot can spawn zombos!")
+                    -- -- -- pl:Say("Debug:  THIS spot can spawn zombos!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- -- pl:Say("Debug:  THIS spot can spawn zombos... AND is not immersion breaking visually to pop in there!")
+                        -- -- -- pl:Say("Debug:  THIS spot can spawn zombos... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -4877,7 +4926,7 @@ local function preDripper(tick_in)
 
                     if 1 + 1 == 2 then
 
-                        -- -- pl:Say("Debug:  debug: preparing to spawn...")
+                        -- -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                         local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -4885,11 +4934,11 @@ local function preDripper(tick_in)
 
                             local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                             
                             if spawnSquare and not spawnSquare:getZombie() then
 
-                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                 local chanceOfOutside = 70
 
@@ -5066,7 +5115,7 @@ local function slapDashSpawner2()
                             occupantsCnt = BWORooms.GetRoomCurrPop(room)
                             occupantsMax = BWORooms.GetRoomMaxPop(room)
 
-                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
 
                             event.bandits = {}
 
@@ -5090,7 +5139,7 @@ local function slapDashSpawner2()
 
                             local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                             
                             if spawnSquare and not spawnSquare:getZombie() then
 
@@ -5105,7 +5154,7 @@ local function slapDashSpawner2()
 
                                     sendClientCommand(player, 'Commands', 'SpawnGroup', event)
 
-                                    pl:Say("spawned FROM ROOM!!!!!!")
+                                    -- pl:Say("spawned FROM ROOM!!!!!!")
 
                                     break
                                 end
@@ -5129,7 +5178,7 @@ local function slapDashSpawner2()
 
                         if returnedThing ~= nil then
                             
-                            pl:Say("spawned NOT from room!!!!!!")
+                            -- pl:Say("spawned NOT from room!!!!!!")
 
                             break
 
@@ -5207,8 +5256,8 @@ local function slapDashSpawner()
 
     -- for k, v in pairs(vipsHere) do
     --     -- hutsCsv[k] = nil
-    --     -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
-    --     -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
+    --     -- -- -- -- print("Key:", k, "Value of v.occupantsMax: ", v.occupantsMax)
+    --     -- -- -- print("Key:", k, "Value of v.fullname: ", v.fullname)
 
     -- end
 
@@ -5236,7 +5285,7 @@ local function slapDashSpawner()
         
         do return end
 
-        -- -- pl:Say("totNpcsInRegion is " .. tostring(totNpcsInRegion))
+        -- -- -- pl:Say("totNpcsInRegion is " .. tostring(totNpcsInRegion))
         
     end
 
@@ -5434,11 +5483,11 @@ local function slapDashSpawner()
 
                     numHutsFound = numHutsFound + 1
 
-                    -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
+                    -- -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
+                        -- -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -5489,7 +5538,7 @@ local function slapDashSpawner()
 
                     if occupantsCnt < occupantsMax then
 
-                        -- -- pl:Say("Debug:  debug: preparing to spawn...")
+                        -- -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                         local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -5497,11 +5546,11 @@ local function slapDashSpawner()
 
                             local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                             
                             if spawnSquare and not spawnSquare:getZombie() and not spawnSquare:isOutside() and spawnSquare:isFree(false) and BanditCompatibility.HaveRoofFull(spawnSquare) and not BWOSquareLoader.IsInExclusion(spawnSquare:getX(), spawnSquare:getY()) then
 
-                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                 local chanceOfOutside = 70
 
@@ -5513,7 +5562,7 @@ local function slapDashSpawner()
 
                                 if ZombRand(1, 100) < chanceOfOutside and walkX ~= nil then
 
-                                    -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
+                                    -- -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
     
                                     event.x = walkX
                                     event.y = walkY
@@ -5531,7 +5580,7 @@ local function slapDashSpawner()
 
                                 if dist >= 7 and dist < 45 then
 
-                                    -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+                                    -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
 
                                     event.bandits = {}
 
@@ -5557,16 +5606,16 @@ local function slapDashSpawner()
                                     local bandit = BanditCreator.MakeFromRoom(spawnRoom)
                                     if bandit then
 
-                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
+                                        -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
 
                                         table.insert(event.bandits, bandit)
 
-                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
+                                        -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
 
 
                                         sendClientCommand(player, 'Commands', 'SpawnGroup', event)
 
-                                        -- -- pl:Say("Debug:  debug:paring to spawn... pt 5c")
+                                        -- -- -- pl:Say("Debug:  debug:paring to spawn... pt 5c")
 
 
                                         -- break
@@ -5719,11 +5768,11 @@ local function slapDashSpawner()
 
                     numHutsFound = numHutsFound + 1
 
-                    -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
+                    -- -- -- pl:Say("Debug:  THIS spot can spawn NPCs!")
 
                     if tostring(LosUtil.lineClear(getCell(), px, py, pz, bx, by, bz, false)) ~= "Clear" then
 
-                        -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
+                        -- -- -- pl:Say("Debug:  THIS spot can spawn NPCs... AND is not immersion breaking visually to pop in there!")
                         
                         building = square:getBuilding()
                         break
@@ -5804,7 +5853,7 @@ local function slapDashSpawner()
 
                         if occupantsCnt < occupantsMax then
 
-                            -- -- pl:Say("Debug:  debug: preparing to spawn...")
+                            -- -- -- pl:Say("Debug:  debug: preparing to spawn...")
 
                             local spawnRoomDef = spawnRoom:getRoomDef()
 
@@ -5812,11 +5861,11 @@ local function slapDashSpawner()
 
                                 local spawnSquare = spawnRoomDef:getFreeSquare()
 
-                                -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
+                                -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 2")
                                 
                                 if spawnSquare and not spawnSquare:getZombie() and not spawnSquare:isOutside() and spawnSquare:isFree(false) and BanditCompatibility.HaveRoofFull(spawnSquare) and not BWOSquareLoader.IsInExclusion(spawnSquare:getX(), spawnSquare:getY()) then
 
-                                    -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
+                                    -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 3")
 
                                     local chanceOfOutside = 70
 
@@ -5828,7 +5877,7 @@ local function slapDashSpawner()
 
                                     if ZombRand(1, 100) < chanceOfOutside and walkX ~= nil then
 
-                                        -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
+                                        -- -- -- pl:Say("Debug: spawning OUTSIDE INSTEAD!")
         
                                         event.x = walkX
                                         event.y = walkY
@@ -5846,7 +5895,7 @@ local function slapDashSpawner()
 
                                     if dist >= 7 and dist < 45 then
 
-                                        -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
+                                        -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 4")
 
                                         event.bandits = {}
 
@@ -5872,11 +5921,11 @@ local function slapDashSpawner()
                                         local bandit = BanditCreator.MakeFromRoom(spawnRoom)
                                         if bandit then
 
-                                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
+                                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5 ...ok?")
 
                                             table.insert(event.bandits, bandit)
 
-                                            -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
+                                            -- -- -- pl:Say("Debug:  debug: preparing to spawn... pt 5b")
 
                                             -- BanditCreator.MakeFromRoom
 
@@ -5886,7 +5935,7 @@ local function slapDashSpawner()
                                                 sendClientCommand(player, 'Commands', 'SpawnGroup', event)
                                             end
 
-                                            -- pl:Say("Debug: npc ".. tostring(event.program.name) .. " just spawned as part of slap dash func at dist ".. tostring(dist) .. "!")
+                                            -- -- pl:Say("Debug: npc ".. tostring(event.program.name) .. " just spawned as part of slap dash func at dist ".. tostring(dist) .. "!")
 
                                             -- dist
 
@@ -5933,7 +5982,9 @@ local onTickZZB = function(numTicksInZZB)
     local mainR69 = ModData.getOrCreate("mainR69")
 
     if not mainR69.basePop then
+
         mainR69.baseMult = 3.0; mainR69.basePop = 25
+
     end
 
 
@@ -5957,8 +6008,6 @@ local onTickZZB = function(numTicksInZZB)
     local square = getCell():getGridSquare(px, py, pz)
 
     local building; local buildingDef; local keyId
-
-    local approxHutsCount
     
     -- = ZZA_countNearbyUnCountedHuts(getPlayer(), 40, 2)
 
@@ -5969,10 +6018,6 @@ local onTickZZB = function(numTicksInZZB)
     local forcedToEveryTick = false
 
     -- forcedToEveryTick
-    if tonumber(approxHutsCount) == nil then
-        approxHutsCount = 0
-    end
-
     local bx, by, bz
 
     local dist
@@ -5988,44 +6033,20 @@ local onTickZZB = function(numTicksInZZB)
     local totNpcsInRegion = 0
 
 
-    local mainR69 = ModData.getOrCreate("mainR69")
-
-    if not mainR69.basePop then
-        mainR69.baseMult = 3.0; mainR69.basePop = 25
-    end
     
     ------------------------------------------------ +
     ------------------------------------------------ +
 
 
-    if tonumber(npcsAllowedLeft) == nil then
-        npcsAllowedLeft = 0
-    end
-
-    if tonumber(npcsAllowed_OG) == nil then
-        npcsAllowed_OG = 0
-    end
-
-
-    npcsAllowed_OG = npcsAllowed_OG + mainR69.basePop; 
-    
-    maxNpcs_R69_OG = npcsAllowed_OG
-
-    npcsAllowedLeft = npcsAllowedLeft + mainR69.basePop; 
-    
-    maxNpcs_R69 = npcsAllowedLeft
-
     ------------------------------------------------ +
     ------------------------------------------------ +
 
-    npcsAllowedLeft, npcsAllowed_OG = ZZA2_AllNpcsLeftNearbyHuts(getPlayer(0), 40, 2)
+    npcsAllowedLeft, npcsAllowed_OG = ZZA2_AllNpcsLeftNearbyHuts(getPlayer(0), 30, 2)
 
-    local approxHutsCount = npcsAllowedLeft
+    maxNpcs_R69_OG = 25 + npcsAllowed_OG
+    
+    maxNpcs_R69 = mainR69.basePop + npcsAllowedLeft
 
-    if approxHutsCount > 0 then
-        maxNpcs_R69 = maxNpcs_R69 + approxHutsCount
-        maxNpcs_R69_OG = npcsAllowed_OG + approxHutsCount
-    end
 
     if maxNpcs_R69 > 100 then
         maxNpcs_R69 = 100
@@ -6046,6 +6067,10 @@ local onTickZZB = function(numTicksInZZB)
     
     if numTicksInZZB % 60 == 0 then
         doEvery60Ticks()
+
+
+
+
     end
 
     local player = getPlayer(0)
@@ -6063,12 +6088,12 @@ local onTickZZB = function(numTicksInZZB)
     -- quickCountNearbyNpcs_R69 < maxNpcs_R69
     if numTicksInZZB % 47 == 0 and quickCountNearbyNpcs_R69 < maxNpcs_R69 then
 
-        -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
-        -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
+        -- -- print("quickCountNearbyNpcs_R69 is " .. tostring(quickCountNearbyNpcs_R69))
+        -- -- print("quickCountNearbyZeds_R69 is " .. tostring(quickCountNearbyZeds_R69))
 
 
-        -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
-        -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
+        -- -- print("maxNpcs_R69 is " .. tostring(maxNpcs_R69))
+        -- -- print("maxZeds_R69 is " .. tostring(maxZeds_R69))
 
         if insideNpcs_R69 < outsideNpcs_R69 or quickCountNearbyNpcs_R69 < (maxNpcs_R69 * (5/10)) or ZombRand(0, 100) > 90 then
 
@@ -6079,6 +6104,38 @@ local onTickZZB = function(numTicksInZZB)
         end
         
     end
+
+
+
+
+
+
+
+
+
+    if numTicksInZZB % 60 == 0 then
+
+        for id, base in pairs(BanditPlayerBase.data) do
+
+            base.x = 0
+            base.x2 = 0
+
+            base.y = 0
+            base.y2 = 0
+
+            -- -- print("id is " .. tostring(id))
+            -- -- print("    base.x is " .. tostring(base.x) .. " and base.x2 is " .. tostring(base.x2))
+            -- -- print("    base.y is " .. tostring(base.y) .. " and base.y2 is " .. tostring(base.y2))
+
+
+        end
+
+    end
+
+
+
+
+
 
 
     if numTicksInZZB % 30 == 0 then
@@ -6096,7 +6153,7 @@ local onTickZZB = function(numTicksInZZB)
                         if coordsTab1 ~= nil then
                             simpWalkerSpawner(coordsTab1.x, coordsTab1.y, 0)
 
-                            -- print("attempting spawn here " .. tostring(coordsTab1.x))
+                            -- -- print("attempting spawn here " .. tostring(coordsTab1.x))
                             -- spawnedNpcHere = true
                         end
 
@@ -6265,7 +6322,7 @@ local onTickZZB = function(numTicksInZZB)
             
             if task ~= nil then
                 for k, v in pairs(task) do
-                    -- -- -- print(tostring(k) .. ": " .. tostring(v))
+                    -- -- -- -- print(tostring(k) .. ": " .. tostring(v))
                 end
             end
 
@@ -6333,12 +6390,12 @@ local function onPress(key)
 
 
         if getGameTime():getDay() < 12 then
-            pl:Say("[QUICK-START: DAY 0 OF OUTBREAK]")
+            -- pl:Say("[QUICK-START: DAY 0 OF OUTBREAK]")
             BWOScheduler.WorldAge = 4
             GameTime.getInstance():setDay(12)
             GameTime.getInstance():setTimeOfDay(9)
         else
-            pl:Say("[QUICK-START: DAY 1 OF OUTBREAK]")
+            -- pl:Say("[QUICK-START: DAY 1 OF OUTBREAK]")
 
             if getGameTime():getDay() < 13 then
                 BWOScheduler.WorldAge = 4
@@ -6353,7 +6410,7 @@ local function onPress(key)
     if key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_9") or key == getCore():getKey("PLACEHOLDER_Keyboard_KEY_NUMPAD9") then
 
         if getGameTime():getDay() < 15 then
-            pl:Say("[QUICK-START: DAY 3 OF OUTBREAK]")
+            -- pl:Say("[QUICK-START: DAY 3 OF OUTBREAK]")
             BWOScheduler.WorldAge = 4
             GameTime.getInstance():setDay(15)
             GameTime.getInstance():setTimeOfDay(9)
