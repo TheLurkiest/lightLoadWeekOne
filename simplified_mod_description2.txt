@@ -1,0 +1,34 @@
+
+
+[h1]Light Load Week One: Simple Spawn Fix[/h1]
+
+A lightweight tweak for Bandits Week One (Build 41) that makes spawning behave better and puts less strain on your PC.
+
+[h2]What it does:[/h2]
+[*] Stops NPC populations from spiraling out of control
+[*] Keeps the world feeling more populated nearby, without wasting resources far away
+[*] Prevents zombies from instantly spawning in huge clumps right next to you when entering buildings
+[*] Smoothly reintroduces zombies over time instead of dumping them all at once
+
+[h3]NPC changes:[/h3]
+[*] NPC population now reacts to what actually happens in your game
+[*] Fewer "infinite replacements" when NPCs die
+[*] Local areas lose population as people die there
+[*] The world gradually empties out based on your actions, not just a timer
+
+[h3]Why use it:[/h3]
+[*] Feels more natural
+[*] Less immersion-breaking spawn behavior
+[*] Better performance in longer sessions
+[*] Still keeps intended population levels-- just handled more cleanly
+
+[h3]Notes:[/h3]
+[*] Designed for [u]Build 41[/u] (re-uploaded Bandits Week One)
+[*] Recommended (but not required):
+    [*]  → Disable "Final Solution event"
+    [*]  → Disable "Start with a babe"
+
+[h3]If you want to skip ahead to when things actually start happening:[/h3]
+[*] Press 8 → step forward day-by-day (to EARLY part of outbreak)
+[*] Press 9 → jump to MIDDLE of outbreak
+
